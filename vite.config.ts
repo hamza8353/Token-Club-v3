@@ -302,6 +302,31 @@ const setupBufferGlobals = () => {
             continue;
           }
           
+          // Check if we need to wrap code that uses a pending variable
+          const pendingVarName = (newLines as any).__pendingVarName;
+          if (pendingVarName && !inIIFE) {
+            const pendingStart = (newLines as any).__pendingVarNameStart || 0;
+            const pendingLineCount = ((newLines as any).__pendingVarNameLineCount || 0) + 1;
+            (newLines as any).__pendingVarNameLineCount = pendingLineCount;
+            
+            // Look for lines that use the pending variable (within first 10 lines after)
+            if (pendingLineCount <= 10) {
+              const varUsageRegex = new RegExp(`\\b${pendingVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`);
+              if (varUsageRegex.test(line)) {
+                // Wrap this line in a function that waits for the variable
+                const indent = line.match(/^(\s*)/)?.[1] || '';
+                const wrappedLine = `(function(){function _wait${pendingVarName.replace(/\$/g, '_')}(){if(!${pendingVarName}){queueMicrotask(_wait${pendingVarName.replace(/\$/g, '_')});return;}${line.trim()}}_wait${pendingVarName.replace(/\$/g, '_')}();})();`;
+                newLines.push(wrappedLine);
+                continue;
+              }
+            } else {
+              // Clear pending flag after 10 lines
+              delete (newLines as any).__pendingVarName;
+              delete (newLines as any).__pendingVarNameStart;
+              delete (newLines as any).__pendingVarNameLineCount;
+            }
+          }
+          
           if (inIIFE) {
             // Count braces to find when class ends
             for (const char of line) {
@@ -316,10 +341,35 @@ const setupBufferGlobals = () => {
               const lastLine = newLines[newLines.length - 1];
               const storedVarName = (newLines as any).__storedVarName;
               const factoryVarName = (newLines as any).__factoryVarName;
+              // Use queueMicrotask to delay factory call until after current execution
+              // This ensures y$2 is available when the factory is called
+              // Also wrap subsequent code that uses the variable to wait for it
               if (lastLine.trim().endsWith('}')) {
-                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, `};};try{${storedVarName}=${factoryVarName}();}catch(e){setTimeout(function(){try{${storedVarName}=${factoryVarName}();}catch(e2){console.error('Failed to create ${storedVarName}:',e2);}},0);}`);
+                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, `};};function _init${storedVarName}(){try{if(!${storedVarName}){${storedVarName}=${factoryVarName}();}}catch(e){queueMicrotask(_init${storedVarName});}}_init${storedVarName}();`);
               } else {
-                newLines.push(`};try{${storedVarName}=${factoryVarName}();}catch(e){setTimeout(function(){try{${storedVarName}=${factoryVarName}();}catch(e2){console.error('Failed to create ${storedVarName}:',e2);}},0);}`);
+                newLines.push(`};function _init${storedVarName}(){try{if(!${storedVarName}){${storedVarName}=${factoryVarName}();}}catch(e){queueMicrotask(_init${storedVarName});}}_init${storedVarName}();`);
+              }
+              
+              // Wrap subsequent lines that use this variable in a function that waits
+              // We'll look ahead a few lines and wrap them
+              let lookAhead = 0;
+              let wrappedNext = false;
+              while (lookAhead < 5 && i + lookAhead + 1 < lines.length) {
+                const nextLine = lines[i + lookAhead + 1];
+                if (nextLine && new RegExp(`\\b${storedVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;])`).test(nextLine)) {
+                  // Found a line that uses the variable - wrap it
+                  if (!wrappedNext) {
+                    newLines.push(`(function(){function _waitFor${storedVarName.replace(/\$/g, '_')}(){if(!${storedVarName}){queueMicrotask(_waitFor${storedVarName.replace(/\$/g, '_')});return;}`);
+                    wrappedNext = true;
+                  }
+                  // This line will be processed in the next iteration
+                  break;
+                }
+                lookAhead++;
+              }
+              if (wrappedNext) {
+                // We'll close the wrapper function after processing the next few lines
+                (newLines as any).__wrapCloseAfter = 5;
               }
               inIIFE = false;
               braceDepth = 0;
