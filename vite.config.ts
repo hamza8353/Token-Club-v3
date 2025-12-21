@@ -259,6 +259,65 @@ const setupBufferGlobals = () => {
         return fixedCode;
       }
       
+      // Handle vendor chunk - fix TDZ errors for imports from react chunk
+      if (chunk.name === 'vendor') {
+        // Fix TDZ errors for class extends using imported values from react
+        // Pattern: let X = class extends y$2 {
+        // Note: Can't use function calls in extends, so we wrap the entire assignment in an IIFE
+        let fixedCode = code;
+        
+        // Fix: let X = class extends y$N {
+        // Wrap the entire assignment in an IIFE that captures extendsVar
+        // We need to find the matching closing brace and close the IIFE
+        const lines = fixedCode.split('\n');
+        const newLines: string[] = [];
+        let braceDepth = 0;
+        let pendingIIFE: { lineIndex: number; keyword: string; varName: string; className: string; extendsVar: string } | null = null;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const classExtendsMatch = line.match(/^(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/);
+          
+          if (classExtendsMatch) {
+            const [, keyword, varName, className, extendsVar] = classExtendsMatch;
+            pendingIIFE = { lineIndex: i, keyword, varName, className, extendsVar };
+            braceDepth = 1;
+            // Replace with IIFE start
+            newLines.push(line.replace(
+              /^(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/,
+              `$1 $2 = (function(){var _e=$4;if(typeof _e==='undefined'){throw new Error('Cannot access $4: not initialized');}return class $3 extends _e {`
+            ));
+            continue;
+          }
+          
+          if (pendingIIFE) {
+            // Count braces to find class end
+            for (const char of line) {
+              if (char === '{') braceDepth++;
+              if (char === '}') braceDepth--;
+            }
+            
+            newLines.push(line);
+            
+            if (braceDepth === 0) {
+              // Close the IIFE
+              const lastLine = newLines[newLines.length - 1];
+              if (lastLine.trim().endsWith('}')) {
+                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, '};})();');
+              } else {
+                newLines.push('})();');
+              }
+              pendingIIFE = null;
+            }
+            continue;
+          }
+          
+          newLines.push(line);
+        }
+        
+        return newLines.join('\n');
+      }
+      
       return null; // No changes for other chunks
     },
   };
@@ -384,13 +443,18 @@ export default defineConfig({
         // Ensure proper chunk ordering - solana-deps must load before solana-core
         // This prevents "Class extends value undefined" errors
         chunkFileNames: (chunkInfo) => {
-          // Ensure solana loads before viem to prevent TDZ errors
-          // viem imports from solana, so solana must be initialized first
+          // Ensure proper chunk load order to prevent TDZ errors
+          // 1. solana loads first (viem imports from it)
+          // 2. react loads before vendor (vendor imports from react)
+          // 3. viem loads after solana
           if (chunkInfo.name === 'solana') {
             return 'assets/js/00-solana-[hash].js';
           }
           if (chunkInfo.name === 'solana-deps') {
             return 'assets/js/00-solana-deps-[hash].js';
+          }
+          if (chunkInfo.name === 'react') {
+            return 'assets/js/01-react-[hash].js';
           }
           return 'assets/js/[name]-[hash].js';
         },
