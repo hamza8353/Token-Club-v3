@@ -140,14 +140,37 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Split node_modules into separate chunks
+          // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'react-vendor';
+            // Solana packages - separate to avoid circular deps
+            if (id.includes('@solana/')) {
+              return 'solana';
             }
+            // Metaplex packages
+            if (id.includes('@metaplex-foundation/')) {
+              return 'metaplex';
+            }
+            // Meteora packages
+            if (id.includes('@meteora-ag/')) {
+              return 'meteora';
+            }
+            // Reown/AppKit packages
+            if (id.includes('@reown/')) {
+              return 'reown';
+            }
+            // React packages
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react';
+            }
+            // Icons
             if (id.includes('lucide-react')) {
               return 'icons';
             }
+            // BN.js and other math libraries
+            if (id.includes('bn.js') || id.includes('bs58')) {
+              return 'crypto';
+            }
+            // Other vendor packages
             return 'vendor';
           }
           // Split modules into separate chunks

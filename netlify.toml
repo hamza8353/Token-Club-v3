@@ -47,7 +47,13 @@
   status = 200
 
 # Performance + basic security headers
-# JavaScript files - proper MIME type
+# JavaScript files - proper MIME type (must come first for specificity)
+[[headers]]
+  for = "/assets/js/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [[headers]]
   for = "/assets/*.js"
   [headers.values]
