@@ -45,11 +45,29 @@ const suppressSourcemapWarnings = () => {
   };
 };
 
+// Plugin to inject Buffer setup at the top of Solana chunk
+const injectBufferInSolanaChunk = () => {
+  return {
+    name: 'inject-buffer-in-solana',
+    generateBundle(options, bundle) {
+      // Find the Solana chunk and inject Buffer setup
+      for (const fileName in bundle) {
+        const chunk = bundle[fileName];
+        if (chunk.type === 'chunk' && chunk.name === 'solana') {
+          const bufferSetup = `import{Buffer}from'buffer';if(typeof globalThis!=='undefined'){(globalThis).Buffer=Buffer;(globalThis).global=globalThis;}if(typeof window!=='undefined'){(window).Buffer=Buffer;(window).global=window;(window).globalThis=window;}if(typeof global!=='undefined'){(global).Buffer=Buffer;}`;
+          chunk.code = bufferSetup + chunk.code;
+        }
+      }
+    },
+  };
+};
+
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     suppressSourcemapWarnings(),
+    injectBufferInSolanaChunk(),
     react({
       // Enable Fast Refresh
       fastRefresh: true,
@@ -159,19 +177,19 @@ export default defineConfig({
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
             // polyfills.ts must be in the entry chunk to ensure Buffer loads first
-            // Buffer MUST be loaded first - Solana packages depend on it
-            // Bundle it separately to ensure it loads before solana chunk
+            // Solana packages - bundle Buffer WITH Solana to ensure it's always available
+            // This prevents "Cannot read properties of undefined (reading 'Buffer')" errors
+            if (id.includes('@solana/')) {
+              return 'solana';
+            }
+            // Buffer - bundle with Solana packages so they're always together
+            // This ensures Buffer is available when Solana chunk executes
             if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
-              return 'buffer';
+              return 'solana'; // Bundle Buffer with Solana
             }
             // Crypto-related packages - keep separate to avoid minification issues
             if (id.includes('crypto') || id.includes('@noble/')) {
               return 'crypto';
-            }
-            // Solana packages - separate to avoid circular deps
-            // Buffer chunk will load before this, ensuring Buffer is available
-            if (id.includes('@solana/')) {
-              return 'solana';
             }
             // Metaplex packages
             if (id.includes('@metaplex-foundation/')) {
@@ -215,6 +233,13 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+        // Inject Buffer setup at the top of Solana chunk
+        banner: (chunk) => {
+          if (chunk.name === 'solana') {
+            return `import{Buffer}from'buffer';if(typeof globalThis!=='undefined'){(globalThis).Buffer=Buffer;(globalThis).global=globalThis;}if(typeof window!=='undefined'){(window).Buffer=Buffer;(window).global=window;(window).globalThis=window;}if(typeof global!=='undefined'){(global).Buffer=Buffer;}`;
+          }
+          return '';
+        },
       },
       onwarn(warning, warn) {
         // Suppress sourcemap warnings for Metaplex package
