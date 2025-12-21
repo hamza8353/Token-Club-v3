@@ -324,17 +324,21 @@ const setupBufferGlobals = () => {
                 }
                 // Add the line inside the wrapper
                 newLines.push(line);
-                // Check if this is the last line that uses the variable (look ahead)
-                let isLastLine = true;
-                for (let j = 1; j <= 3 && i + j < lines.length; j++) {
+                // Check if the next line uses the variable (look ahead up to 5 lines)
+                let nextLineUsesVar = false;
+                for (let j = 1; j <= 5 && i + j < lines.length; j++) {
                   const nextLine = lines[i + j];
                   if (nextLine && varUsageRegex.test(nextLine)) {
-                    isLastLine = false;
+                    nextLineUsesVar = true;
+                    break;
+                  }
+                  // If we hit an empty line or comment, stop looking
+                  if (nextLine && (nextLine.trim() === '' || nextLine.trim().startsWith('//') || nextLine.trim().startsWith('/*'))) {
                     break;
                   }
                 }
-                if (isLastLine) {
-                  // Close the wrapper function
+                if (!nextLineUsesVar) {
+                  // Close the wrapper function - no more lines use the variable
                   newLines.push(`}_wait${pendingVarName.replace(/\$/g, '_')}();})();`);
                   (newLines as any).__pendingVarNameInWrapper = false;
                 }
