@@ -83,12 +83,12 @@ const setupBufferGlobals = () => {
           // This ensures Buffer is available (from Buffer$1 or global) when methods are called
           let fixedCode = code;
           // Replace with a Proxy that lazily evaluates Buffer when properties are accessed
-          // CRITICAL: By the time Proxy getter is called (when _Buffer.allocUnsafe() is called),
-          // the module is fully initialized, so Buffer$1 should be available
-          // Try Buffer$1 first, then fall back to global Buffer sources
+          // CRITICAL: Cannot access Buffer$1 or safeBufferExports - even in function body they cause TDZ
+          // The setup code (which runs after imports) should set Buffer globally
+          // Rely ONLY on global Buffer sources that should be set by setup code
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;if(typeof Buffer$1!==\'undefined\'){_cachedBuffer=Buffer$1;}else if(typeof safeBufferExports!==\'undefined\'&&safeBufferExports&&safeBufferExports.Buffer){_cachedBuffer=safeBufferExports.Buffer;}else if(typeof Buffer!==\'undefined\'){_cachedBuffer=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){_cachedBuffer=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){_cachedBuffer=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){_cachedBuffer=global.Buffer;}if(!_cachedBuffer)throw new Error(\'Buffer is not available. Ensure solana-deps chunk loads first.\');return _cachedBuffer;}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
+            'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;var B;if(typeof Buffer!==\'undefined\'){B=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){B=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){B=global.Buffer;}if(B){_cachedBuffer=B;return _cachedBuffer;}throw new Error(\'Buffer is not available. Setup code should have set Buffer globally from Buffer$1.\');}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
           );
           
           // Also need to replace all uses of _Buffer.method() with getBuffer().method()
