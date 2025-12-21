@@ -71,10 +71,10 @@ const setupBufferGlobals = () => {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
-          // CRITICAL: Setup code runs AFTER imports initialize, so Buffer$1 is available here
-          // Use Buffer$1 (imported) to set Buffer globally, so Proxy getter can access it later
-          // The setup code can safely access imported variables because it runs after imports
-          const setupCode = `\n(function(){try{let B;if(typeof Buffer$1!=='undefined'){B=Buffer$1;}else if(typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer){B=safeBufferExports.Buffer;}else if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}else if(typeof global!=='undefined'&&global.Buffer){B=global.Buffer;}else if(typeof Buffer!=='undefined'){B=Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+          // CRITICAL: Setup code runs immediately after imports, but Buffer$1 might still be in TDZ
+          // Use queueMicrotask to delay execution until after module is fully initialized
+          // This ensures Buffer$1 is available when we try to access it
+          const setupCode = `\n(function(){queueMicrotask(function(){try{let B;if(typeof Buffer$1!=='undefined'){B=Buffer$1;}else if(typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer){B=safeBufferExports.Buffer;}else if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}else if(typeof global!=='undefined'&&global.Buffer){B=global.Buffer;}else if(typeof Buffer!=='undefined'){B=Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}});})();`;
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
@@ -83,12 +83,11 @@ const setupBufferGlobals = () => {
           // This ensures Buffer is available (from Buffer$1 or global) when methods are called
           let fixedCode = code;
           // Replace with a Proxy that lazily evaluates Buffer when properties are accessed
-          // CRITICAL: Cannot access Buffer$1 or safeBufferExports - even in function body they cause TDZ
-          // The setup code (which runs after imports) should set Buffer globally
-          // Rely ONLY on global Buffer sources that should be set by setup code
+          // Use eval to access Buffer$1 without triggering TDZ - eval runs in a different scope
+          // This allows us to access Buffer$1 when the getter is called (after module init)
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;var B;if(typeof Buffer!==\'undefined\'){B=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){B=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){B=global.Buffer;}if(B){_cachedBuffer=B;return _cachedBuffer;}throw new Error(\'Buffer is not available. Setup code should have set Buffer globally from Buffer$1.\');}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
+            'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;var B;try{B=typeof Buffer!==\'undefined\'?Buffer:void 0;}catch(e){}if(!B){try{B=typeof globalThis!==\'undefined\'&&globalThis.Buffer?globalThis.Buffer:void 0;}catch(e){}}if(!B){try{B=typeof window!==\'undefined\'&&window.Buffer?window.Buffer:void 0;}catch(e){}}if(!B){try{B=typeof global!==\'undefined\'&&global.Buffer?global.Buffer:void 0;}catch(e){}}if(!B){try{B=eval(\'typeof Buffer$1!==\\\'undefined\\\'?Buffer$1:void 0\');}catch(e){}}if(!B){try{var se=eval(\'typeof safeBufferExports!==\\\'undefined\\\'&&safeBufferExports&&safeBufferExports.Buffer?safeBufferExports.Buffer:void 0\');if(se)B=se;}catch(e){}}if(B){_cachedBuffer=B;if(typeof globalThis!==\'undefined\'&&!globalThis.Buffer){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!==\'undefined\'&&!window.Buffer){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!==\'undefined\'&&!global.Buffer){global.Buffer=B;}return _cachedBuffer;}throw new Error(\'Buffer is not available.\');}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
           );
           
           // Also need to replace all uses of _Buffer.method() with getBuffer().method()
