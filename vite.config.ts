@@ -284,11 +284,11 @@ const setupBufferGlobals = () => {
             const [, indent, keyword, varName, className, extendsVar] = classExtendsMatch;
             inIIFE = true;
             braceDepth = 1;
-            // Access extendsVar directly but wrap in try-catch with retry mechanism
-            // If y$2 is not available, we'll throw a helpful error
-            // The IIFE will execute after imports, so y$2 should be available
-            // But if it's not, we'll use a getter that retries
-            iifeStart = `${indent}${keyword} ${varName} = (function(){var _e;try{_e=${extendsVar};}catch(e){_e=void 0;}if(typeof _e==='undefined'){if(typeof ${extendsVar}!=='undefined'){_e=${extendsVar};}else{throw new Error('Cannot access ${extendsVar}: not initialized. Ensure react chunk loads before vendor chunk.');}}return class ${className} extends _e {`;
+            // Access extendsVar directly in extends clause - don't try to cache it
+            // The IIFE ensures the extendsVar is evaluated when the class is created, not at module init
+            // But we still need to access it directly for extends to work
+            // Use a getter function that's called immediately to ensure extendsVar is available
+            iifeStart = `${indent}${keyword} ${varName} = (function(){var _getExtends=function(){if(typeof ${extendsVar}==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized. Ensure react chunk (01-react) loads before vendor chunk.');}return ${extendsVar};};return class ${className} extends _getExtends() {`;
             newLines.push(iifeStart);
             continue;
           }
