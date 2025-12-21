@@ -279,7 +279,7 @@ export default defineConfig({
         hoistTransitiveImports: false,  // Disable to prevent TDZ errors
         // Use external live bindings to handle circular dependencies properly
         // This allows circular dependencies to work by using live bindings
-        externalLiveBindings: false,  // Disable to prevent circular dependency issues
+        externalLiveBindings: true,  // Enable to handle circular deps within solana chunk
         // Ensure proper chunk ordering - solana-deps must load before solana-core
         // This prevents "Class extends value undefined" errors
         chunkFileNames: (chunkInfo) => {
@@ -294,12 +294,23 @@ export default defineConfig({
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
-            // Bundle BN and Buffer WITH Solana packages to ensure they're in same chunk
-            // This avoids timing/initialization issues with separate chunks
-            // @solana/web3.js with all its dependencies to avoid circular deps
-            // Bundle ALL packages that Solana depends on to eliminate circular dependencies
-            if (id.includes('@solana/web3.js') || id.includes('bn.js') || (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) || id.includes('rpc-websockets') || id.includes('eventemitter3') || id.includes('events') || id.includes('superstruct') || id.includes('borsh') || id.includes('bs58') || id.includes('base-x')) {
-              return 'solana'; // Bundle together
+            // CRITICAL: Bundle ALL Solana dependencies together FIRST to prevent circular deps
+            // This includes encoding packages (bs58, base-x) that might be in vendor otherwise
+            // Check for encoding/bs58/base-x FIRST before other checks
+            if (
+              id.includes('bs58') || 
+              id.includes('base-x') || 
+              id.includes('/encoding') ||
+              id.includes('@solana/web3.js') || 
+              id.includes('bn.js') || 
+              (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) || 
+              id.includes('rpc-websockets') || 
+              id.includes('eventemitter3') || 
+              id.includes('events') || 
+              id.includes('superstruct') || 
+              id.includes('borsh')
+            ) {
+              return 'solana'; // Bundle together - MUST be first check
             }
             // @solana/spl-token - separate chunk
             if (id.includes('@solana/spl-token')) {
@@ -344,12 +355,6 @@ export default defineConfig({
             // Viem and related packages - separate chunk (used by Reown)
             if (id.includes('viem') || id.includes('@wagmi/')) {
               return 'viem';
-            }
-            // Don't split bs58 - let it bundle with packages that use it
-            // This avoids dependency resolution issues (base-x, etc.)
-            if (id.includes('bs58') || id.includes('base-x')) {
-              // Return undefined to let it bundle with its parent
-              return undefined;
             }
             // Split other vendor packages into smaller chunks
             // Large utility libraries
