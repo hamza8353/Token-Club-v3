@@ -187,12 +187,14 @@ export default defineConfig({
             if (id.includes('bn.js')) {
               return 'bn';
             }
-            // bs58 - keep separate from buffer to avoid conflicts
-            if (id.includes('bs58')) {
-              return 'bs58';
+            // Don't split bs58 - let it bundle with packages that use it
+            // This avoids dependency resolution issues (base-x, etc.)
+            if (id.includes('bs58') || id.includes('base-x')) {
+              // Return undefined to let it bundle with its parent
+              return undefined;
             }
             // buffer - keep separate to avoid minification issues
-            if (id.includes('buffer') && !id.includes('bs58')) {
+            if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
               return 'buffer';
             }
             // Other vendor packages
