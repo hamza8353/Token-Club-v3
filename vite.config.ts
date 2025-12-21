@@ -53,35 +53,29 @@ const setupBufferGlobals = () => {
     renderChunk(code, chunk, options) {
       // Handle solana-core chunk - Buffer must be available immediately after imports
       if (chunk.name === 'solana-core') {
-        // Find the end of all import statements - handle both with and without semicolons
-        // Match: import ... from '...' (with optional semicolon and newline)
-        const importRegex = /import\s+[^'"]*['"][^'"]*['"];?\s*/g;
-        let lastImportEnd = 0;
-        let match;
-        while ((match = importRegex.exec(code)) !== null) {
-          lastImportEnd = Math.max(lastImportEnd, match.index + match[0].length);
+        // Find all import statements - they end with a newline
+        // Match: import ... from '...' followed by newline
+        const lines = code.split('\n');
+        let lastImportLineIndex = -1;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].trim().startsWith('import ') && lines[i].includes(' from ')) {
+            lastImportLineIndex = i;
+          }
         }
         
-        // Also check for import statements that might span multiple lines
-        const multilineImportRegex = /import\s+[^'"]*['"][^'"]*['"];?\s*\n/g;
-        while ((match = multilineImportRegex.exec(code)) !== null) {
-          lastImportEnd = Math.max(lastImportEnd, match.index + match[0].length);
-        }
-        
-        // If we found imports, inject Buffer setup right after them
-        if (lastImportEnd > 0) {
-          // Find the newline after the last import (or use lastImportEnd if no newline)
-          let insertPoint = lastImportEnd;
-          const nextNewline = code.indexOf('\n', lastImportEnd);
-          if (nextNewline !== -1) {
-            insertPoint = nextNewline + 1;
+        // If we found imports, inject Buffer setup right after the last import line
+        if (lastImportLineIndex >= 0) {
+          // Calculate the insert point after the last import line
+          let charIndex = 0;
+          for (let i = 0; i <= lastImportLineIndex; i++) {
+            charIndex += lines[i].length + 1; // +1 for the newline
           }
           
           // Inject code that accesses Buffer from imported deps and sets it globally
           // Access Buffer$1 from the import (it's imported as Buffer$1 from solana-deps)
           // Also try to get it from safeBufferExports if available
           const setupCode = `\n(function(){try{let B;try{B=typeof Buffer$1!=='undefined'?Buffer$1:void 0;}catch(e){}if(!B){try{B=typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer?safeBufferExports.Buffer:void 0;}catch(e){}}if(!B){B=typeof Buffer!=='undefined'?Buffer:void 0;}if(!B){B=typeof globalThis!=='undefined'&&globalThis.Buffer?globalThis.Buffer:void 0;}if(!B){B=typeof window!=='undefined'&&window.Buffer?window.Buffer:void 0;}if(!B){B=typeof global!=='undefined'&&global.Buffer?global.Buffer:void 0;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
-          return code.slice(0, insertPoint) + setupCode + code.slice(insertPoint);
+          return code.slice(0, charIndex) + setupCode + code.slice(charIndex);
         } else {
           // No imports found, inject at beginning
           const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
