@@ -81,12 +81,11 @@ const setupBufferGlobals = () => {
           // Solution: Make _Buffer a lazy getter that accesses Buffer when actually used
           // This ensures Buffer is available (from Buffer$1 or global) when methods are called
           let fixedCode = code;
-          // Replace with a Proxy that lazily evaluates Buffer when properties are accessed
-          // Simply access Buffer from global scope (set by setup code)
-          // Setup code should have set Buffer globally by the time getter is called
+          // Replace with a Proxy that waits for Buffer to be available
+          // Add a small delay/retry mechanism since solana-deps might not have set Buffer yet
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;var B;if(typeof Buffer!==\'undefined\'){B=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){B=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){B=global.Buffer;}if(B){_cachedBuffer=B;return _cachedBuffer;}throw new Error(\'Buffer is not available. Ensure solana-deps chunk loads first.\');}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
+            'var _Buffer = (function(){var _cachedBuffer;var _waiting=false;var _queue=[];function _getBuffer(cb){if(_cachedBuffer){if(cb)cb(_cachedBuffer);return _cachedBuffer;}var B;if(typeof Buffer!==\'undefined\'){B=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){B=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){B=global.Buffer;}if(B){_cachedBuffer=B;if(cb)cb(B);while(_queue.length){_queue.shift()(_cachedBuffer);}return _cachedBuffer;}if(cb){_queue.push(cb);if(!_waiting){_waiting=true;setTimeout(function(){_getBuffer();},10);}}else{throw new Error(\'Buffer is not available. Solana-deps chunk may not have loaded yet.\');}}return new Proxy({},{get:function(t,p){if(_cachedBuffer)return typeof _cachedBuffer[p]===\'function\'?_cachedBuffer[p].bind(_cachedBuffer):_cachedBuffer[p];var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
           );
           
           // Also need to replace all uses of _Buffer.method() with getBuffer().method()
@@ -136,25 +135,12 @@ const setupBufferGlobals = () => {
         }
       }
       
-      // Handle solana-deps chunk - ensure Buffer is exported and set globally FIRST
+      // Handle solana-deps chunk - ensure Buffer is exported and set globally AT THE VERY BEGINNING
       if (chunk.name === 'solana-deps') {
-        // Find where exports are and inject Buffer setup BEFORE exports
-        // This ensures Buffer is available globally before other chunks try to use it
-        const exportIndex = code.lastIndexOf('export ');
-        if (exportIndex !== -1) {
-          // Find the line before exports
-          const beforeExport = code.lastIndexOf('\n', exportIndex);
-          const insertPoint = beforeExport !== -1 ? beforeExport + 1 : exportIndex;
-          
-          // Inject Buffer setup code that accesses Buffer from module scope
-          // This runs before exports, ensuring Buffer is global when other chunks import
-          const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();\n`;
-          return code.slice(0, insertPoint) + setupCode + code.slice(insertPoint);
-        } else {
-          // No exports found, inject at end
-          const setupCode = `\n(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
-          return code + setupCode;
-        }
+        // Inject Buffer setup code at the VERY END, after all code has run
+        // This ensures Buffer from the module is available
+        const setupCode = `\n(function(){try{if(typeof Buffer!=='undefined'){if(typeof globalThis!=='undefined'){globalThis.Buffer=Buffer;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=Buffer;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=Buffer;}}}catch(e){}})();`;
+        return code + setupCode;
       }
       
       // Handle solana-spl chunk
