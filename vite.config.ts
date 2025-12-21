@@ -276,10 +276,10 @@ export default defineConfig({
         // Ensure proper format for ES modules
         format: 'es',
         // Hoist transitive imports to prevent circular dependency issues
-        hoistTransitiveImports: true,
+        hoistTransitiveImports: false,  // Disable to prevent TDZ errors
         // Use external live bindings to handle circular dependencies properly
         // This allows circular dependencies to work by using live bindings
-        externalLiveBindings: true,
+        externalLiveBindings: false,  // Disable to prevent circular dependency issues
         // Ensure proper chunk ordering - solana-deps must load before solana-core
         // This prevents "Class extends value undefined" errors
         chunkFileNames: (chunkInfo) => {
