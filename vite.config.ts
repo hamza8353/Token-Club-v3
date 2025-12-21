@@ -192,6 +192,10 @@ export default defineConfig({
       output: {
         // Ensure proper format for ES modules
         format: 'es',
+        // Hoist transitive imports to prevent circular dependency issues
+        hoistTransitiveImports: true,
+        // Use external live bindings to handle circular dependencies properly
+        externalLiveBindings: false,
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
@@ -267,10 +271,18 @@ export default defineConfig({
         if (warning.code === 'CIRCULAR_DEPENDENCY' && (warning.message?.includes('bs58') || warning.message?.includes('buffer'))) {
           return;
         }
+        // Suppress circular dependency warnings for Solana packages (they have internal circular deps)
+        if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message?.includes('@solana/')) {
+          return;
+        }
+        // Suppress circular dependency warnings for BN
+        if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message?.includes('bn.js')) {
+          return;
+        }
         warn(warning);
       },
-      // Preserve module boundaries to prevent minification issues
-      preserveEntrySignatures: 'strict',
+      // Use exports mode to prevent circular dependency issues
+      preserveEntrySignatures: 'exports-only',
     },
     chunkSizeWarningLimit: 1000,
     // Enable compression
