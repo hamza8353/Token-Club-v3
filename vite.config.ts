@@ -63,17 +63,21 @@ const setupBufferGlobals = () => {
           }
         }
         
-        // If we found imports, inject Buffer setup right after the last import line
+        // Inject setup code at the VERY BEGINNING, before imports
+        // This ensures BN and Buffer are available before class definitions execute
+        // CRITICAL: This runs BEFORE imports, so we can only set up from global/polyfill sources
+        const setupCodeBefore = `(function(){try{if(typeof globalThis!=='undefined'&&!globalThis.Buffer){try{var bufMod=require('buffer');if(bufMod&&bufMod.Buffer){globalThis.Buffer=bufMod.Buffer;globalThis.global=globalThis;}}catch(e){}}if(typeof window!=='undefined'&&!window.Buffer&&typeof globalThis!=='undefined'&&globalThis.Buffer){window.Buffer=globalThis.Buffer;window.global=window;window.globalThis=window;}}catch(e){}})();\n`;
+        
         if (lastImportLineIndex >= 0) {
-          // Calculate the insert point after the last import line
+          // Calculate the insert point after the last import line for the second setup
           let charIndex = 0;
           for (let i = 0; i <= lastImportLineIndex; i++) {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
           // Buffer and BN are bundled with solana chunk
-          // Set them globally after imports to ensure they're available when classes extend from them
-          // Also expose BN globally for classes that extend from it
+          // Set them globally after imports from the bundled modules
+          // This ensures they're available for class definitions that come after
           const setupCode = `\n(function(){try{var B,BN;if(typeof Buffer!=='undefined'){B=Buffer;}if(typeof BN$1!=='undefined'){BN=BN$1;}else if(typeof BN!=='undefined'){BN=BN;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}if(BN){if(typeof globalThis!=='undefined'){globalThis.BN=BN;}if(typeof window!=='undefined'){window.BN=BN;}if(typeof global!=='undefined'){global.BN=BN;}}}catch(e){}})();`;
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
@@ -128,11 +132,11 @@ const setupBufferGlobals = () => {
             'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;if(typeof Buffer$1!==\'undefined\'){_cachedBuffer=Buffer$1;}else if(typeof safeBufferExports!==\'undefined\'&&safeBufferExports&&safeBufferExports.Buffer){_cachedBuffer=safeBufferExports.Buffer;}else if(typeof Buffer!==\'undefined\'){_cachedBuffer=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){_cachedBuffer=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){_cachedBuffer=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){_cachedBuffer=global.Buffer;}if(!_cachedBuffer)throw new Error(\'Buffer is not available. Ensure solana-deps chunk loads first.\');return _cachedBuffer;}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
           );
           
-          return fixedCode.slice(0, charIndex) + setupCode + fixedCode.slice(charIndex);
+          return setupCodeBefore + fixedCode.slice(0, charIndex) + setupCode + fixedCode.slice(charIndex);
         } else {
           // No imports found, inject at beginning
           const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
-          return setupCode + code;
+          return setupCodeBefore + setupCode + code;
         }
       }
       
