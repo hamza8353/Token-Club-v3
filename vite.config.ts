@@ -315,15 +315,43 @@ const setupBufferGlobals = () => {
               if (varUsageRegex.test(line)) {
                 // Wrap this line in a function that waits for the variable
                 const indent = line.match(/^(\s*)/)?.[1] || '';
-                const wrappedLine = `(function(){function _wait${pendingVarName.replace(/\$/g, '_')}(){if(!${pendingVarName}){queueMicrotask(_wait${pendingVarName.replace(/\$/g, '_')});return;}${line.trim()}}_wait${pendingVarName.replace(/\$/g, '_')}();})();`;
-                newLines.push(wrappedLine);
+                // Check if we're starting a new wrapper or continuing an existing one
+                const isStartingWrapper = !(newLines as any).__pendingVarNameInWrapper;
+                if (isStartingWrapper) {
+                  // Start a new wrapper function
+                  newLines.push(`(function(){function _wait${pendingVarName.replace(/\$/g, '_')}(){if(!${pendingVarName}){queueMicrotask(_wait${pendingVarName.replace(/\$/g, '_')});return;}`);
+                  (newLines as any).__pendingVarNameInWrapper = true;
+                }
+                // Add the line inside the wrapper
+                newLines.push(line);
+                // Check if this is the last line that uses the variable (look ahead)
+                let isLastLine = true;
+                for (let j = 1; j <= 3 && i + j < lines.length; j++) {
+                  const nextLine = lines[i + j];
+                  if (nextLine && varUsageRegex.test(nextLine)) {
+                    isLastLine = false;
+                    break;
+                  }
+                }
+                if (isLastLine) {
+                  // Close the wrapper function
+                  newLines.push(`}_wait${pendingVarName.replace(/\$/g, '_')}();})();`);
+                  (newLines as any).__pendingVarNameInWrapper = false;
+                }
                 continue;
               }
             } else {
               // Clear pending flag after 10 lines
+              // Also close any open wrapper
+              if ((newLines as any).__pendingVarNameInWrapper) {
+                const pendingVarName = (newLines as any).__pendingVarName;
+                newLines.push(`}_wait${pendingVarName.replace(/\$/g, '_')}();})();`);
+                (newLines as any).__pendingVarNameInWrapper = false;
+              }
               delete (newLines as any).__pendingVarName;
               delete (newLines as any).__pendingVarNameStart;
               delete (newLines as any).__pendingVarNameLineCount;
+              delete (newLines as any).__pendingVarNameInWrapper;
             }
           }
           
