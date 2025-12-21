@@ -45,6 +45,7 @@ const suppressSourcemapWarnings = () => {
   };
 };
 
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -132,22 +133,10 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    // Use terser instead of esbuild for better handling of encoding libraries
-    minify: 'terser',
+    // Disable minification entirely to prevent bs58/buffer errors
+    // Server-side compression (gzip/brotli) will still reduce file sizes
+    minify: false,
     cssMinify: true,
-    terserOptions: {
-      compress: {
-        // Preserve function names to prevent "X is not a function" errors
-        keep_fnames: true,
-        // Don't mangle names that might be used as exports
-        keep_classnames: true,
-      },
-      mangle: false, // Disable mangling entirely to prevent export/import issues
-      format: {
-        // Preserve comments for debugging
-        comments: false,
-      },
-    },
     // Ensure proper module format
     modulePreload: {
       polyfill: true,
