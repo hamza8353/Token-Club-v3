@@ -276,14 +276,15 @@ const setupBufferGlobals = () => {
         
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
-          const classExtendsMatch = line.match(/^(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/);
+          const classExtendsMatch = line.match(/^\s*(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/);
           
           if (classExtendsMatch) {
             const [, keyword, varName, className, extendsVar] = classExtendsMatch;
             pendingIIFE = { lineIndex: i, keyword, varName, className, extendsVar };
             braceDepth = 1;
-            // Replace with IIFE start
-            newLines.push(line.replace(
+            // Replace with IIFE start - preserve leading whitespace
+            const leadingWhitespace = line.match(/^\s*/)?.[0] || '';
+            newLines.push(leadingWhitespace + line.trim().replace(
               /^(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/,
               `$1 $2 = (function(){var _e=$4;if(typeof _e==='undefined'){throw new Error('Cannot access $4: not initialized');}return class $3 extends _e {`
             ));
