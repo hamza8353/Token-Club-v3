@@ -261,62 +261,56 @@ const setupBufferGlobals = () => {
       
       // Handle vendor chunk - fix TDZ errors for imports from react chunk
       if (chunk.name === 'vendor') {
-        // Fix TDZ errors for class extends using imported values from react
-        // Pattern: let X = class extends y$2 {
-        // Note: Can't use function calls in extends, so we wrap the entire assignment in an IIFE
+        // Fix TDZ errors for y$2 and other variables imported from react
+        // The issue is that these are being used in class extends before imports are resolved
+        // Wrap class extends in IIFE to make it lazy
         let fixedCode = code;
         
-        // Fix: let X = class extends y$N {
-        // Wrap the entire assignment in an IIFE that captures extendsVar
-        // We need to find the matching closing brace and close the IIFE
-        const lines = fixedCode.split('\n');
-        const newLines: string[] = [];
-        let braceDepth = 0;
-        let pendingIIFE: { lineIndex: number; keyword: string; varName: string; className: string; extendsVar: string } | null = null;
-        
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const classExtendsMatch = line.match(/^\s*(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/);
-          
-          if (classExtendsMatch) {
-            const [, keyword, varName, className, extendsVar] = classExtendsMatch;
-            pendingIIFE = { lineIndex: i, keyword, varName, className, extendsVar };
-            braceDepth = 1;
-            // Replace with IIFE start - preserve leading whitespace
-            const leadingWhitespace = line.match(/^\s*/)?.[0] || '';
-            newLines.push(leadingWhitespace + line.trim().replace(
-              /^(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/,
-              `$1 $2 = (function(){var _e=$4;if(typeof _e==='undefined'){throw new Error('Cannot access $4: not initialized');}return class $3 extends _e {`
-            ));
-            continue;
+        // Fix: let X = class Y extends y$N {
+        // Wrap in IIFE: let X = (function(){var _e=y$N;if(typeof _e==='undefined'){throw new Error('Cannot access y$N: not initialized');}return class Y extends _e { ... };})();
+        fixedCode = fixedCode.replace(
+          /(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/g,
+          (match, keyword, varName, className, extendsVar) => {
+            return `${keyword} ${varName} = (function(){var _e=${extendsVar};if(typeof _e==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized');}return class ${className} extends _e {`;
           }
-          
-          if (pendingIIFE) {
-            // Count braces to find class end
-            for (const char of line) {
-              if (char === '{') braceDepth++;
-              if (char === '}') braceDepth--;
-            }
-            
-            newLines.push(line);
-            
-            if (braceDepth === 0) {
-              // Close the IIFE
-              const lastLine = newLines[newLines.length - 1];
-              if (lastLine.trim().endsWith('}')) {
-                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, '};})();');
-              } else {
-                newLines.push('})();');
+        );
+        
+        // Find matching closing braces and close the IIFE
+        // This is a simplified approach - we'll close the IIFE at the end of the class
+        // Pattern: } at the end of a class definition
+        // We need to be careful not to match other closing braces
+        // For now, let's use a simpler approach: close IIFE after the class closing brace
+        // But we need to track brace depth...
+        // Actually, let's use a different approach: replace the pattern with a helper function
+        
+        // Simpler: Replace extends y$N with a lazy getter
+        // But we can't use function calls in extends directly, so we need to wrap the class
+        // Let's use a different pattern: wrap the entire class definition
+        fixedCode = fixedCode.replace(
+          /(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{([^}]*)}/gs,
+          (match, keyword, varName, className, extendsVar, classBody) => {
+            // Count braces in classBody to find the real end
+            let braceCount = 1; // Start with the opening brace
+            let realEnd = -1;
+            for (let i = 0; i < classBody.length; i++) {
+              if (classBody[i] === '{') braceCount++;
+              if (classBody[i] === '}') braceCount--;
+              if (braceCount === 0) {
+                realEnd = i;
+                break;
               }
-              pendingIIFE = null;
             }
-            continue;
+            if (realEnd === -1) {
+              // Couldn't find matching brace, return original
+              return match;
+            }
+            const actualBody = classBody.substring(0, realEnd);
+            const afterBody = classBody.substring(realEnd + 1);
+            return `${keyword} ${varName} = (function(){var _e=${extendsVar};if(typeof _e==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized');}return class ${className} extends _e {${actualBody}};})();${afterBody}`;
           }
-          
-          newLines.push(line);
-        }
+        );
         
-        return newLines.join('\n');
+        return fixedCode;
       }
       
       return null; // No changes for other chunks
@@ -450,6 +444,9 @@ export default defineConfig({
           // 3. viem loads after solana
           if (chunkInfo.name === 'solana') {
             return 'assets/js/00-solana-[hash].js';
+          }
+          if (chunkInfo.name === 'react') {
+            return 'assets/js/01-react-[hash].js';
           }
           if (chunkInfo.name === 'solana-deps') {
             return 'assets/js/00-solana-deps-[hash].js';
