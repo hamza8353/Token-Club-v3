@@ -71,11 +71,10 @@ const setupBufferGlobals = () => {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
-          // CRITICAL: Don't access Buffer$1 or safeBufferExports here - they're in temporal dead zone!
-          // The setup code runs immediately after imports, but imports aren't initialized yet
-          // Instead, rely ONLY on global Buffer that should be set by solana-deps chunk (which loads first)
-          // solana-deps sets Buffer globally, so we can access it from global scope here
-          const setupCode = `\n(function(){try{let B;if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}else if(typeof global!=='undefined'&&global.Buffer){B=global.Buffer;}else if(typeof Buffer!=='undefined'){B=Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+          // CRITICAL: Setup code runs AFTER imports initialize, so Buffer$1 is available here
+          // Use Buffer$1 (imported) to set Buffer globally, so Proxy getter can access it later
+          // The setup code can safely access imported variables because it runs after imports
+          const setupCode = `\n(function(){try{let B;if(typeof Buffer$1!=='undefined'){B=Buffer$1;}else if(typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer){B=safeBufferExports.Buffer;}else if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}else if(typeof global!=='undefined'&&global.Buffer){B=global.Buffer;}else if(typeof Buffer!=='undefined'){B=Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
