@@ -71,9 +71,10 @@ const setupBufferGlobals = () => {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
-          // Buffer is bundled with solana chunk, so set it globally after imports
-          // This ensures Buffer is available for the rest of the chunk
-          const setupCode = `\n(function(){try{var B;if(typeof Buffer!=='undefined'){B=Buffer;}else if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+          // Buffer and BN are bundled with solana chunk
+          // Set them globally after imports to ensure they're available when classes extend from them
+          // Also expose BN globally for classes that extend from it
+          const setupCode = `\n(function(){try{var B,BN;if(typeof Buffer!=='undefined'){B=Buffer;}if(typeof BN$1!=='undefined'){BN=BN$1;}else if(typeof BN!=='undefined'){BN=BN;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}if(BN){if(typeof globalThis!=='undefined'){globalThis.BN=BN;}if(typeof window!=='undefined'){window.BN=BN;}if(typeof global!=='undefined'){global.BN=BN;}}}catch(e){}})();`;
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
