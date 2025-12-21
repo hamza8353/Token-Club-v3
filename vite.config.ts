@@ -132,7 +132,6 @@ export default defineConfig({
   define: {
     'global': 'globalThis',
     'process.env': {},
-    // Ensure Buffer is available globally for Solana packages
     'process.browser': true,
   },
   build: {
@@ -159,6 +158,7 @@ export default defineConfig({
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
+            // polyfills.ts must be in the entry chunk to ensure Buffer loads first
             // Buffer MUST be loaded first - Solana packages depend on it
             // Bundle it separately to ensure it loads before solana chunk
             if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
@@ -215,9 +215,6 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
-        // Ensure proper chunk loading order - buffer must load before solana
-        // This prevents "extends undefined" errors in Solana packages
-        chunkGroupingSize: 50000,
       },
       onwarn(warning, warn) {
         // Suppress sourcemap warnings for Metaplex package

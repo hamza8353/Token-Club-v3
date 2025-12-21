@@ -1,9 +1,6 @@
-// Ensure Buffer is available globally before Solana packages load
-import { Buffer } from 'buffer'
-if (typeof window !== 'undefined') {
-  (window as any).Buffer = Buffer
-  ;(window as any).global = window
-}
+// CRITICAL: Load polyfills FIRST before any other imports
+// This ensures Buffer is available globally before Solana packages load
+import './polyfills'
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
