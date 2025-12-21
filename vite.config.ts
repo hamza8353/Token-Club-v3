@@ -266,51 +266,55 @@ const setupBufferGlobals = () => {
         // Wrap class extends in IIFE to make it lazy
         let fixedCode = code;
         
-        // Fix: let X = class Y extends y$N {
-        // Wrap in IIFE: let X = (function(){var _e=y$N;if(typeof _e==='undefined'){throw new Error('Cannot access y$N: not initialized');}return class Y extends _e { ... };})();
-        fixedCode = fixedCode.replace(
-          /(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/g,
-          (match, keyword, varName, className, extendsVar) => {
-            return `${keyword} ${varName} = (function(){var _e=${extendsVar};if(typeof _e==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized');}return class ${className} extends _e {`;
+        // Process line by line to handle multiline class definitions
+        const lines = fixedCode.split('\n');
+        const newLines: string[] = [];
+        let inIIFE = false;
+        let braceDepth = 0;
+        let iifeStart = '';
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          
+          // Check if this line starts a class extends y$N pattern
+          const classExtendsMatch = line.match(/^(\s*)(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/);
+          
+          if (classExtendsMatch && !inIIFE) {
+            const [, indent, keyword, varName, className, extendsVar] = classExtendsMatch;
+            inIIFE = true;
+            braceDepth = 1;
+            iifeStart = `${indent}${keyword} ${varName} = (function(){var _e=${extendsVar};if(typeof _e==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized');}return class ${className} extends _e {`;
+            newLines.push(iifeStart);
+            continue;
           }
-        );
-        
-        // Find matching closing braces and close the IIFE
-        // This is a simplified approach - we'll close the IIFE at the end of the class
-        // Pattern: } at the end of a class definition
-        // We need to be careful not to match other closing braces
-        // For now, let's use a simpler approach: close IIFE after the class closing brace
-        // But we need to track brace depth...
-        // Actually, let's use a different approach: replace the pattern with a helper function
-        
-        // Simpler: Replace extends y$N with a lazy getter
-        // But we can't use function calls in extends directly, so we need to wrap the class
-        // Let's use a different pattern: wrap the entire class definition
-        fixedCode = fixedCode.replace(
-          /(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{([^}]*)}/gs,
-          (match, keyword, varName, className, extendsVar, classBody) => {
-            // Count braces in classBody to find the real end
-            let braceCount = 1; // Start with the opening brace
-            let realEnd = -1;
-            for (let i = 0; i < classBody.length; i++) {
-              if (classBody[i] === '{') braceCount++;
-              if (classBody[i] === '}') braceCount--;
-              if (braceCount === 0) {
-                realEnd = i;
-                break;
+          
+          if (inIIFE) {
+            // Count braces to find when class ends
+            for (const char of line) {
+              if (char === '{') braceDepth++;
+              if (char === '}') braceDepth--;
+            }
+            
+            newLines.push(line);
+            
+            if (braceDepth === 0) {
+              // Class ended, close the IIFE
+              const lastLine = newLines[newLines.length - 1];
+              if (lastLine.trim().endsWith('}')) {
+                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, '};})();');
+              } else {
+                newLines.push('})();');
               }
+              inIIFE = false;
+              braceDepth = 0;
             }
-            if (realEnd === -1) {
-              // Couldn't find matching brace, return original
-              return match;
-            }
-            const actualBody = classBody.substring(0, realEnd);
-            const afterBody = classBody.substring(realEnd + 1);
-            return `${keyword} ${varName} = (function(){var _e=${extendsVar};if(typeof _e==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized');}return class ${className} extends _e {${actualBody}};})();${afterBody}`;
+            continue;
           }
-        );
+          
+          newLines.push(line);
+        }
         
-        return fixedCode;
+        return newLines.join('\n');
       }
       
       return null; // No changes for other chunks
