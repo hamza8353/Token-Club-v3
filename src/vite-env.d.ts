@@ -1,6 +1,13 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
+declare module 'virtual:pwa-register' {
+  export interface RegisterSWOptions {
+    immediate?: boolean;
+  }
+  export function registerSW(options?: RegisterSWOptions): void;
+}
+
 interface ImportMetaEnv {
   readonly VITE_REOWN_PROJECT_ID?: string;
   readonly VITE_HELIUS_API_KEY?: string;

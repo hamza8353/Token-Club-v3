@@ -155,7 +155,7 @@ export class MeteoraLiquidityManager {
     // Calculate initial price
     const initPrice = quoteAmount / baseAmount;
     const initSqrtPrice = getSqrtPriceFromPrice(
-      initPrice,
+      initPrice.toString(),
       baseMeta.decimals,
       quoteMeta.decimals
     );
@@ -231,22 +231,22 @@ export class MeteoraLiquidityManager {
     // Only add ATA creation instructions if they're actually needed
     // Check if accounts exist to avoid no-op transactions
     try {
-      await getAccount(this.connection, payerTokenA.ata);
+      await getAccount(this.connection, payerTokenA.ataPubkey);
       // Account exists, don't add creation instruction
     } catch (err) {
       // Account doesn't exist, add creation instruction
-      if (payerTokenA.instruction) {
-        instructions.push(payerTokenA.instruction);
+      if (payerTokenA.ix) {
+        instructions.push(payerTokenA.ix);
       }
     }
 
     try {
-      await getAccount(this.connection, payerTokenB.ata);
+      await getAccount(this.connection, payerTokenB.ataPubkey);
       // Account exists, don't add creation instruction
     } catch (err) {
       // Account doesn't exist, add creation instruction
-      if (payerTokenB.instruction) {
-        instructions.push(payerTokenB.instruction);
+      if (payerTokenB.ix) {
+        instructions.push(payerTokenB.ix);
       }
     }
 
@@ -269,9 +269,6 @@ export class MeteoraLiquidityManager {
       activationPoint: null,
       tokenAProgram: baseMeta.programId,
       tokenBProgram: quoteMeta.programId,
-      payerTokenA: payerTokenA.ata,
-      payerTokenB: payerTokenB.ata,
-      isLockLiquidity: lockLiquidity,
     });
 
     // Add compute budget instructions
@@ -467,11 +464,11 @@ export class MeteoraLiquidityManager {
       ),
     ]);
 
-    if (tokenAAtaInfo.instruction) {
-      instructions.push(tokenAAtaInfo.instruction);
+    if (tokenAAtaInfo.ix) {
+      instructions.push(tokenAAtaInfo.ix);
     }
-    if (tokenBAtaInfo.instruction) {
-      instructions.push(tokenBAtaInfo.instruction);
+    if (tokenBAtaInfo.ix) {
+      instructions.push(tokenBAtaInfo.ix);
     }
 
     // Derive position NFT account using SDK
@@ -599,11 +596,11 @@ export class MeteoraLiquidityManager {
       ),
     ]);
 
-    if (tokenAAtaInfo.instruction) {
-      instructions.push(tokenAAtaInfo.instruction);
+    if (tokenAAtaInfo.ix) {
+      instructions.push(tokenAAtaInfo.ix);
     }
-    if (tokenBAtaInfo.instruction) {
-      instructions.push(tokenBAtaInfo.instruction);
+    if (tokenBAtaInfo.ix) {
+      instructions.push(tokenBAtaInfo.ix);
     }
 
     // Derive position NFT account using SDK
@@ -696,18 +693,21 @@ export class MeteoraLiquidityManager {
     }
 
     // Get unlocked liquidity
-    const unlockedLiquidity = positionState.unlockedLiquidity instanceof BN
-      ? positionState.unlockedLiquidity
-      : new BN(positionState.unlockedLiquidity.toString());
+    const unlockedLiquidityValue: BN | string | number | undefined = positionState.unlockedLiquidity;
+    const unlockedLiquidity = unlockedLiquidityValue instanceof BN
+      ? unlockedLiquidityValue
+      : new BN(String(unlockedLiquidityValue || '0'));
 
     // Get permanent locked and vested liquidity for better error messages
-    const permanentLocked = positionState.permanentLockedLiquidity instanceof BN
-      ? positionState.permanentLockedLiquidity
-      : new BN(positionState.permanentLockedLiquidity?.toString() || '0');
+    const permanentLockedValue: BN | string | number | undefined = positionState.permanentLockedLiquidity;
+    const permanentLocked = permanentLockedValue instanceof BN
+      ? permanentLockedValue
+      : new BN(String(permanentLockedValue || '0'));
     
-    const vestedLiquidity = positionState.vestedLiquidity instanceof BN
-      ? positionState.vestedLiquidity
-      : new BN(positionState.vestedLiquidity?.toString() || '0');
+    const vestedLiquidityValue: BN | string | number | undefined = positionState.vestedLiquidity;
+    const vestedLiquidity = vestedLiquidityValue instanceof BN
+      ? vestedLiquidityValue
+      : new BN(String(vestedLiquidityValue || '0'));
 
     // Position state (details not logged for security)
 
@@ -849,8 +849,10 @@ export class MeteoraLiquidityManager {
     // Get token mints and programs
     const tokenAMint = poolState.tokenAMint;
     const tokenBMint = poolState.tokenBMint;
-    const tokenAProgram = poolState.tokenAProgram || TOKEN_PROGRAM_ID;
-    const tokenBProgram = poolState.tokenBProgram || TOKEN_PROGRAM_ID;
+    // Meteora pool state doesn't expose tokenAProgram/tokenBProgram directly
+    // Default to TOKEN_PROGRAM_ID (most pools use standard token program)
+    const tokenAProgram = TOKEN_PROGRAM_ID;
+    const tokenBProgram = TOKEN_PROGRAM_ID;
 
     // Get or create user's token accounts (ATAs)
     const [userTokenAAccount, userTokenBAccount] = await Promise.all([
@@ -873,11 +875,11 @@ export class MeteoraLiquidityManager {
     ]);
 
     // Add ATA creation instructions if needed
-    if (userTokenAAccount.instruction) {
-      instructions.push(userTokenAAccount.instruction);
+    if (userTokenAAccount.ix) {
+      instructions.push(userTokenAAccount.ix);
     }
-    if (userTokenBAccount.instruction) {
-      instructions.push(userTokenBAccount.instruction);
+    if (userTokenBAccount.ix) {
+      instructions.push(userTokenBAccount.ix);
     }
 
     // Pool authority (fixed address from Meteora DAMM v2)
@@ -896,8 +898,8 @@ export class MeteoraLiquidityManager {
         poolAuthority: POOL_AUTHORITY,
         pool: poolPk,
         position: positionPk,
-        tokenAAccount: userTokenAAccount.ata,
-        tokenBAccount: userTokenBAccount.ata,
+        tokenAAccount: userTokenAAccount.ataPubkey,
+        tokenBAccount: userTokenBAccount.ataPubkey,
         tokenAVault: poolState.tokenAVault,
         tokenBVault: poolState.tokenBVault,
         tokenAMint,
@@ -931,8 +933,8 @@ export class MeteoraLiquidityManager {
           .accountsPartial({
             pool: poolPk,
             position: positionPk,
-            tokenAAccount: userTokenAAccount.ata,
-            tokenBAccount: userTokenBAccount.ata,
+            tokenAAccount: userTokenAAccount.ataPubkey,
+            tokenBAccount: userTokenBAccount.ataPubkey,
             owner: payer,
           });
         
@@ -947,8 +949,8 @@ export class MeteoraLiquidityManager {
       } catch (partialErr: any) {
         console.error('[claimPositionFee] Both .accounts() and .accountsPartial() failed');
         console.error('[claimPositionFee] Account details:', {
-          tokenAAccount: userTokenAAccount.ata.toBase58(),
-          tokenBAccount: userTokenBAccount.ata.toBase58(),
+          tokenAAccount: userTokenAAccount.ataPubkey.toBase58(),
+          tokenBAccount: userTokenBAccount.ataPubkey.toBase58(),
           tokenAVault: poolState.tokenAVault.toBase58(),
           tokenBVault: poolState.tokenBVault.toBase58(),
           positionNftAccount: positionNftAccount.toBase58(),

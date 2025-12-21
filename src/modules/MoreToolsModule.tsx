@@ -87,15 +87,13 @@ const MoreToolsModule = React.memo(() => {
                   </div>
                 ) : (
                   <PrimaryButton
+                    text={tool.actionLabel || 'Open'}
                     onClick={() => {
                       if (tool.href) {
                         window.open(tool.href, '_blank', 'noopener,noreferrer');
                       }
                     }}
-                    className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold py-3 rounded-xl transition-all"
-                  >
-                    {tool.actionLabel || 'Open'}
-                  </PrimaryButton>
+                  />
                 )}
               </div>
             </div>

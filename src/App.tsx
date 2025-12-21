@@ -10,6 +10,7 @@ import {
   Github,
   FileText,
 } from 'lucide-react';
+// Menu is imported but not used - keeping for potential future use
 import { Logo } from './components/Logo';
 import { Header } from './components/Header';
 import { NavItem } from './components/NavItem';

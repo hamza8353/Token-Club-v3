@@ -111,6 +111,13 @@ export default defineConfig({
         skipWaiting: true,
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+        // Increase file size limit to handle large vendor bundles
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
+        // Exclude large files from precaching (they'll be cached on demand)
+        globIgnores: [
+          '**/favicon.svg',
+          '**/*.map',
+        ],
       },
     }),
   ],

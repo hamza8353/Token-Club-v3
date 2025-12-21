@@ -1460,7 +1460,7 @@ const LiquidityModule = React.memo(() => {
             <PrimaryButton 
               text={isProcessing ? 'Processing...' : permanentLock ? 'Lock Permanently' : 'Lock Liquidity'} 
               cost={`${PLATFORM_FEES_DISPLAY.LOCK_LIQUIDITY} SOL`}
-              color={permanentLock ? "orange" : "blue"}
+              color={permanentLock ? "red" : "blue"}
               onClick={handleLockLiquidity}
               disabled={!isConnected || isProcessing || !poolIdLock}
             />
@@ -1508,7 +1508,7 @@ const LiquidityModule = React.memo(() => {
                 <PrimaryButton 
                   text={isProcessing ? 'Claiming...' : 'Claim Fees'} 
                   cost={`${PLATFORM_FEES_DISPLAY.CLAIM_FEES} SOL`}
-                  color="green"
+                  color="teal"
                   onClick={handleClaimFees}
                   disabled={!isConnected || isProcessing || !poolIdClaim}
                 />
