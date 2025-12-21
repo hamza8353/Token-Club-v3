@@ -51,11 +51,26 @@ const setupBufferGlobals = () => {
   return {
     name: 'setup-buffer-globals',
     renderChunk(code, chunk, options) {
-      // Handle solana chunk - Buffer is bundled with it, so just set it globally after imports
+      // Handle solana chunk - Buffer is bundled with it, so just set it globally
       if (chunk.name === 'solana') {
+        // Fix TDZ errors for require$$2 - make it lazy to avoid accessing encoding$1 before init
+        // Replace: const require$$2 = getAugmentedNamespace(encoding$1);
+        // With: var require$$2; (lazy getter function that evaluates when called)
+        let fixedCode = code.replace(
+          /const require\$\$2\s*=\s*\/\*@__PURE__\*\/getAugmentedNamespace\(encoding\$1\);/g,
+          'var require$$2=(function(){var _cache;return function(){if(!_cache){if(typeof encoding$1===\'undefined\'){throw new Error(\'Cannot access require$$2: encoding$1 not initialized\');}_cache=getAugmentedNamespace(encoding$1);}return _cache;};})();'
+        );
+        
+        // Fix uses of require$$2 to call it as a function
+        // Replace: __importStar(require$$2) with __importStar(require$$2())
+        fixedCode = fixedCode.replace(
+          /__importStar\(require\$\$2\)/g,
+          '__importStar(require$$2())'
+        );
+        
         // Find all import statements - they end with a newline
         // Match: import ... from '...' followed by newline
-        const lines = code.split('\n');
+        const lines = fixedCode.split('\n');
         let lastImportLineIndex = -1;
         for (let i = 0; i < lines.length; i++) {
           if (lines[i].trim().startsWith('import ') && lines[i].includes(' from ')) {
@@ -85,10 +100,10 @@ const setupBufferGlobals = () => {
           // CRITICAL: _Buffer is assigned at module init, but Buffer might not be available yet
           // Solution: Make _Buffer a lazy getter that accesses Buffer when actually used
           // This ensures Buffer is available (from Buffer$1 or global) when methods are called
-          let fixedCode = code;
+          // Note: fixedCode already contains the require$$2 fixes above
           // Fix direct access to safeBufferExports.Buffer - use simple fallback to global Buffer
           // Buffer should be available from the module scope (bundled) or global scope (set by setup code)
-          fixedCode = fixedCode.replace(
+          let bufferFixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
             'var _Buffer = (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer ? safeBufferExports.Buffer : void 0))));'
           );
@@ -120,7 +135,7 @@ const setupBufferGlobals = () => {
           
           // Best solution: Replace _Buffer with a Proxy that lazily gets Buffer when properties are accessed
           // Use cached Buffer to avoid repeated lookups and ensure Buffer is available
-          fixedCode = fixedCode.replace(
+          bufferFixedCode = bufferFixedCode.replace(
             /var\s+_Buffer\s*=\s*\(function getBuffer\(\)\{var B;if\(typeof Buffer\$1!==\'undefined\'\)\{B=Buffer\$1;\}else if\(typeof safeBufferExports!==\'undefined\'&&safeBufferExports&&safeBufferExports\.Buffer\)\{B=safeBufferExports\.Buffer;\}else if\(typeof Buffer!==\'undefined\'\)\{B=Buffer;\}else if\(typeof globalThis!==\'undefined\'&&globalThis\.Buffer\)\{B=globalThis\.Buffer;\}else if\(typeof window!==\'undefined\'&&window\.Buffer\)\{B=window\.Buffer;\}else if\(typeof global!==\'undefined\'&&global\.Buffer\)\{B=global\.Buffer;\}return B;\}\)\(\);/g,
             '(function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;if(typeof Buffer$1!==\'undefined\'){_cachedBuffer=Buffer$1;}else if(typeof safeBufferExports!==\'undefined\'&&safeBufferExports&&safeBufferExports.Buffer){_cachedBuffer=safeBufferExports.Buffer;}else if(typeof Buffer!==\'undefined\'){_cachedBuffer=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){_cachedBuffer=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){_cachedBuffer=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){_cachedBuffer=global.Buffer;}if(!_cachedBuffer)throw new Error(\'Buffer is not available. Ensure solana-deps chunk loads first.\');return _cachedBuffer;}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})()'
           );
@@ -132,11 +147,11 @@ const setupBufferGlobals = () => {
             'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;if(typeof Buffer$1!==\'undefined\'){_cachedBuffer=Buffer$1;}else if(typeof safeBufferExports!==\'undefined\'&&safeBufferExports&&safeBufferExports.Buffer){_cachedBuffer=safeBufferExports.Buffer;}else if(typeof Buffer!==\'undefined\'){_cachedBuffer=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){_cachedBuffer=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){_cachedBuffer=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){_cachedBuffer=global.Buffer;}if(!_cachedBuffer)throw new Error(\'Buffer is not available. Ensure solana-deps chunk loads first.\');return _cachedBuffer;}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
           );
           
-          return setupCodeBefore + fixedCode.slice(0, charIndex) + setupCode + fixedCode.slice(charIndex);
+          return setupCodeBefore + bufferFixedCode.slice(0, charIndex) + setupCode + bufferFixedCode.slice(charIndex);
         } else {
           // No imports found, inject at beginning
           const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
-          return setupCodeBefore + setupCode + code;
+          return setupCodeBefore + setupCode + fixedCode;
         }
       }
       
