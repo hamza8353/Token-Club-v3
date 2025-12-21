@@ -83,11 +83,11 @@ const setupBufferGlobals = () => {
           // Solution: Make _Buffer a lazy getter that accesses Buffer when actually used
           // This ensures Buffer is available (from Buffer$1 or global) when methods are called
           let fixedCode = code;
-          // Replace with a getter function that lazily evaluates Buffer when used
+          // Replace with a Proxy that lazily evaluates Buffer when properties are accessed
           // This avoids TDZ issues and ensures Buffer is available when actually needed
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (function getBuffer(){var B;if(typeof Buffer$1!==\'undefined\'){B=Buffer$1;}else if(typeof safeBufferExports!==\'undefined\'&&safeBufferExports&&safeBufferExports.Buffer){B=safeBufferExports.Buffer;}else if(typeof Buffer!==\'undefined\'){B=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){B=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){B=global.Buffer;}return B;})();'
+            'var _Buffer = (function(){var _cachedBuffer;function _getBuffer(){if(_cachedBuffer)return _cachedBuffer;if(typeof Buffer$1!==\'undefined\'){_cachedBuffer=Buffer$1;}else if(typeof safeBufferExports!==\'undefined\'&&safeBufferExports&&safeBufferExports.Buffer){_cachedBuffer=safeBufferExports.Buffer;}else if(typeof Buffer!==\'undefined\'){_cachedBuffer=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){_cachedBuffer=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){_cachedBuffer=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){_cachedBuffer=global.Buffer;}if(!_cachedBuffer)throw new Error(\'Buffer is not available. Ensure solana-deps chunk loads first.\');return _cachedBuffer;}return new Proxy({},{get:function(t,p){var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
           );
           
           // Also need to replace all uses of _Buffer.method() with getBuffer().method()
