@@ -51,8 +51,8 @@ const setupBufferGlobals = () => {
   return {
     name: 'setup-buffer-globals',
     renderChunk(code, chunk, options) {
-      // Handle solana-core chunk - Buffer must be available immediately after imports
-      if (chunk.name === 'solana-core') {
+      // Handle solana chunk - Buffer is bundled with it, so just set it globally after imports
+      if (chunk.name === 'solana') {
         // Find all import statements - they end with a newline
         // Match: import ... from '...' followed by newline
         const lines = code.split('\n');
@@ -71,9 +71,9 @@ const setupBufferGlobals = () => {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
-          // REMOVED: Don't try to set Buffer in solana-core - let solana-deps handle it
-          // solana-deps chunk should set Buffer globally, and solana-core just uses it
-          const setupCode = ``;  // Empty - no setup code in solana-core
+          // Buffer is bundled with solana chunk, so set it globally after imports
+          // This ensures Buffer is available for the rest of the chunk
+          const setupCode = `\n(function(){try{var B;if(typeof Buffer!=='undefined'){B=Buffer;}else if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
@@ -81,11 +81,11 @@ const setupBufferGlobals = () => {
           // Solution: Make _Buffer a lazy getter that accesses Buffer when actually used
           // This ensures Buffer is available (from Buffer$1 or global) when methods are called
           let fixedCode = code;
-          // Replace with a Proxy that waits for Buffer to be available
-          // Add a small delay/retry mechanism since solana-deps might not have set Buffer yet
+          // Fix direct access to safeBufferExports.Buffer - use simple fallback to global Buffer
+          // Buffer should be available from the module scope (bundled) or global scope (set by setup code)
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (function(){var _cachedBuffer;var _waiting=false;var _queue=[];function _getBuffer(cb){if(_cachedBuffer){if(cb)cb(_cachedBuffer);return _cachedBuffer;}var B;if(typeof Buffer!==\'undefined\'){B=Buffer;}else if(typeof globalThis!==\'undefined\'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!==\'undefined\'&&window.Buffer){B=window.Buffer;}else if(typeof global!==\'undefined\'&&global.Buffer){B=global.Buffer;}if(B){_cachedBuffer=B;if(cb)cb(B);while(_queue.length){_queue.shift()(_cachedBuffer);}return _cachedBuffer;}if(cb){_queue.push(cb);if(!_waiting){_waiting=true;setTimeout(function(){_getBuffer();},10);}}else{throw new Error(\'Buffer is not available. Solana-deps chunk may not have loaded yet.\');}}return new Proxy({},{get:function(t,p){if(_cachedBuffer)return typeof _cachedBuffer[p]===\'function\'?_cachedBuffer[p].bind(_cachedBuffer):_cachedBuffer[p];var B=_getBuffer();return typeof B[p]===\'function\'?B[p].bind(B):B[p];}});})();'
+            'var _Buffer = (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer ? safeBufferExports.Buffer : void 0))));'
           );
           
           // Also need to replace all uses of _Buffer.method() with getBuffer().method()
@@ -135,13 +135,7 @@ const setupBufferGlobals = () => {
         }
       }
       
-      // Handle solana-deps chunk - ensure Buffer is set globally AT THE VERY BEGINNING
-      if (chunk.name === 'solana-deps') {
-        // Inject Buffer setup code at the VERY BEGINNING of the chunk
-        // Use dynamic import/require to get Buffer, or access from polyfills
-        const setupCode = `(function(){try{var B;try{B=require('buffer').Buffer;}catch(e){try{B=typeof Buffer!=='undefined'?Buffer:void 0;}catch(e2){}}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();\n`;
-        return setupCode + code;
-      }
+      // No solana-deps chunk anymore - Buffer is bundled with solana
       
       // Handle solana-spl chunk
       if (chunk.name === 'solana-spl') {
@@ -295,22 +289,13 @@ export default defineConfig({
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
-            // CRITICAL: BN and Buffer must load FIRST before any Solana code
-            // Create separate chunks to ensure proper initialization order
-            // BN.js - separate chunk that loads first
-            if (id.includes('bn.js')) {
-              return 'solana-deps'; // Load BN first
+            // Bundle BN and Buffer WITH Solana packages to ensure they're in same chunk
+            // This avoids timing/initialization issues with separate chunks
+            // @solana/web3.js with BN and Buffer
+            if (id.includes('@solana/web3.js') || id.includes('bn.js') || (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x'))) {
+              return 'solana'; // Bundle together
             }
-            // Buffer - separate chunk that loads first (with BN)
-            if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
-              return 'solana-deps'; // Load Buffer with BN
-            }
-            // Split Solana packages to break circular dependencies
-            // @solana/web3.js depends on BN and Buffer - load after deps
-            if (id.includes('@solana/web3.js')) {
-              return 'solana-core';
-            }
-            // @solana/spl-token depends on web3.js - load after
+            // @solana/spl-token - separate chunk
             if (id.includes('@solana/spl-token')) {
               return 'solana-spl';
             }
