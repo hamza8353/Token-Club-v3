@@ -135,12 +135,12 @@ const setupBufferGlobals = () => {
         }
       }
       
-      // Handle solana-deps chunk - ensure Buffer is exported and set globally AT THE VERY BEGINNING
+      // Handle solana-deps chunk - ensure Buffer is set globally AT THE VERY BEGINNING
       if (chunk.name === 'solana-deps') {
-        // Inject Buffer setup code at the VERY END, after all code has run
-        // This ensures Buffer from the module is available
-        const setupCode = `\n(function(){try{if(typeof Buffer!=='undefined'){if(typeof globalThis!=='undefined'){globalThis.Buffer=Buffer;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=Buffer;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=Buffer;}}}catch(e){}})();`;
-        return code + setupCode;
+        // Inject Buffer setup code at the VERY BEGINNING of the chunk
+        // Use dynamic import/require to get Buffer, or access from polyfills
+        const setupCode = `(function(){try{var B;try{B=require('buffer').Buffer;}catch(e){try{B=typeof Buffer!=='undefined'?Buffer:void 0;}catch(e2){}}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();\n`;
+        return setupCode + code;
       }
       
       // Handle solana-spl chunk
