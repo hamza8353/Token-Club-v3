@@ -51,7 +51,8 @@ const setupBufferGlobals = () => {
     name: 'setup-buffer-globals',
     generateBundle(options, bundle) {
       // Find all Solana-related chunks and inject Buffer setup code AFTER imports
-      const solanaChunkNames = ['solana-core', 'solana-spl'];
+      // solana-deps must have Buffer setup FIRST, then solana-core and solana-spl
+      const solanaChunkNames = ['solana-deps', 'solana-core', 'solana-spl'];
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
         if (chunk.type === 'chunk' && solanaChunkNames.includes(chunk.name || '')) {
@@ -198,13 +199,32 @@ export default defineConfig({
         // Use external live bindings to handle circular dependencies properly
         // This allows circular dependencies to work by using live bindings
         externalLiveBindings: true,
+        // Ensure proper chunk ordering - solana-deps must load before solana-core
+        // This prevents "Class extends value undefined" errors
+        chunkFileNames: (chunkInfo) => {
+          // Ensure solana-deps loads first by giving it a name that sorts first
+          if (chunkInfo.name === 'solana-deps') {
+            return 'assets/js/00-solana-deps-[hash].js';
+          }
+          return 'assets/js/[name]-[hash].js';
+        },
         // Experimental: Set minimum chunk size to encourage more splitting
         experimentalMinChunkSize: 20000, // 20KB minimum to prevent huge chunks
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
+            // CRITICAL: BN and Buffer must load FIRST before any Solana code
+            // Create separate chunks to ensure proper initialization order
+            // BN.js - separate chunk that loads first
+            if (id.includes('bn.js')) {
+              return 'solana-deps'; // Load BN first
+            }
+            // Buffer - separate chunk that loads first (with BN)
+            if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
+              return 'solana-deps'; // Load Buffer with BN
+            }
             // Split Solana packages to break circular dependencies
-            // @solana/web3.js is the core - load it first
+            // @solana/web3.js depends on BN and Buffer - load after deps
             if (id.includes('@solana/web3.js')) {
               return 'solana-core';
             }
@@ -214,14 +234,6 @@ export default defineConfig({
             }
             // No other @solana/ packages are used, so don't create a separate chunk
             // This prevents circular dependency issues
-            // BN.js - bundle with solana-core (web3.js needs it)
-            if (id.includes('bn.js')) {
-              return 'solana-core'; // Bundle BN with solana-core
-            }
-            // Buffer - bundle with solana-core (web3.js needs it)
-            if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
-              return 'solana-core'; // Bundle Buffer with solana-core
-            }
             // Crypto-related packages - keep separate to avoid minification issues
             if (id.includes('crypto') || id.includes('@noble/')) {
               return 'crypto';
@@ -280,9 +292,8 @@ export default defineConfig({
           }
         },
         // Optimize chunk file names
-        chunkFileNames: 'assets/js/[name]-[hash].js',
-        entryFileNames: 'assets/js/[name]-[hash].js',
-        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+            entryFileNames: 'assets/js/[name]-[hash].js',
+            assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
       },
       onwarn(warning, warn) {
         // Suppress sourcemap warnings for Metaplex package
