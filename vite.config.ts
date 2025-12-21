@@ -196,10 +196,15 @@ export default defineConfig({
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
             // polyfills.ts must be in the entry chunk to ensure Buffer loads first
-            // Solana packages - bundle Buffer WITH Solana to ensure it's always available
-            // This prevents "Cannot read properties of undefined (reading 'Buffer')" errors
+            // Solana packages - bundle Buffer and BN WITH Solana to ensure they're always available
+            // This prevents initialization order issues
             if (id.includes('@solana/')) {
               return 'solana';
+            }
+            // BN.js - bundle with Solana packages to prevent "Cannot access BN before initialization"
+            // Solana packages depend on BN, so they must be together
+            if (id.includes('bn.js')) {
+              return 'solana'; // Bundle BN with Solana
             }
             // Buffer - bundle with Solana packages so they're always together
             // This ensures Buffer is available when Solana chunk executes
@@ -229,10 +234,6 @@ export default defineConfig({
             // Icons
             if (id.includes('lucide-react')) {
               return 'icons';
-            }
-            // BN.js - keep separate to avoid circular deps
-            if (id.includes('bn.js')) {
-              return 'bn';
             }
             // Don't split bs58 - let it bundle with packages that use it
             // This avoids dependency resolution issues (base-x, etc.)
