@@ -45,12 +45,48 @@ const suppressSourcemapWarnings = () => {
   };
 };
 
+// Plugin to inject Buffer global setup in Solana chunk without redeclaring Buffer
+const setupBufferGlobals = () => {
+  return {
+    name: 'setup-buffer-globals',
+    generateBundle(options, bundle) {
+      // Find Solana chunk and inject Buffer setup code AFTER imports
+      for (const fileName in bundle) {
+        const chunk = bundle[fileName];
+        if (chunk.type === 'chunk' && chunk.name === 'solana') {
+          // Find where imports end and inject setup code there
+          // This ensures Buffer is available when we try to access it
+          const importEnd = chunk.code.lastIndexOf('import ');
+          if (importEnd !== -1) {
+            // Find the end of the last import statement
+            const lastImportEnd = chunk.code.indexOf('\n', importEnd);
+            if (lastImportEnd !== -1) {
+              // Inject setup code right after imports
+              const setupCode = `\n(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+              chunk.code = chunk.code.slice(0, lastImportEnd + 1) + setupCode + chunk.code.slice(lastImportEnd + 1);
+            } else {
+              // Fallback: inject at beginning
+              const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+              chunk.code = setupCode + chunk.code;
+            }
+          } else {
+            // No imports found, inject at beginning
+            const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+            chunk.code = setupCode + chunk.code;
+          }
+        }
+      }
+    },
+  };
+};
+
 
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     suppressSourcemapWarnings(),
+    setupBufferGlobals(),
     react({
       // Enable Fast Refresh
       fastRefresh: true,
@@ -216,13 +252,6 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
-        // Inject Buffer setup at the top of Solana chunk
-        banner: (chunk) => {
-          if (chunk.name === 'solana') {
-            return `import{Buffer}from'buffer';if(typeof globalThis!=='undefined'){(globalThis).Buffer=Buffer;(globalThis).global=globalThis;}if(typeof window!=='undefined'){(window).Buffer=Buffer;(window).global=window;(window).globalThis=window;}if(typeof global!=='undefined'){(global).Buffer=Buffer;}`;
-          }
-          return '';
-        },
       },
       onwarn(warning, warn) {
         // Suppress sourcemap warnings for Metaplex package
