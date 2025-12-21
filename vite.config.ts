@@ -71,10 +71,9 @@ const setupBufferGlobals = () => {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
-          // CRITICAL: Setup code runs after imports, so Buffer$1 should be available
-          // Run synchronously first, if that fails (TDZ), use setTimeout as fallback
-          // This ensures Buffer is set as soon as possible
-          const setupCode = `\n(function(){function setBuffer(){try{var B;if(typeof Buffer$1!=='undefined'){B=Buffer$1;}else if(typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer){B=safeBufferExports.Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}}try{setBuffer();}catch(e){setTimeout(setBuffer,0);}})();`;
+          // REMOVED: Don't try to set Buffer in solana-core - let solana-deps handle it
+          // solana-deps chunk should set Buffer globally, and solana-core just uses it
+          const setupCode = ``;  // Empty - no setup code in solana-core
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
