@@ -45,29 +45,12 @@ const suppressSourcemapWarnings = () => {
   };
 };
 
-// Plugin to inject Buffer setup at the top of Solana chunk
-const injectBufferInSolanaChunk = () => {
-  return {
-    name: 'inject-buffer-in-solana',
-    generateBundle(options, bundle) {
-      // Find the Solana chunk and inject Buffer setup
-      for (const fileName in bundle) {
-        const chunk = bundle[fileName];
-        if (chunk.type === 'chunk' && chunk.name === 'solana') {
-          const bufferSetup = `import{Buffer}from'buffer';if(typeof globalThis!=='undefined'){(globalThis).Buffer=Buffer;(globalThis).global=globalThis;}if(typeof window!=='undefined'){(window).Buffer=Buffer;(window).global=window;(window).globalThis=window;}if(typeof global!=='undefined'){(global).Buffer=Buffer;}`;
-          chunk.code = bufferSetup + chunk.code;
-        }
-      }
-    },
-  };
-};
 
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     suppressSourcemapWarnings(),
-    injectBufferInSolanaChunk(),
     react({
       // Enable Fast Refresh
       fastRefresh: true,
