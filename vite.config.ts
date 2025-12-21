@@ -45,15 +45,16 @@ const suppressSourcemapWarnings = () => {
   };
 };
 
-// Plugin to inject Buffer global setup in Solana chunk without redeclaring Buffer
+// Plugin to inject Buffer global setup in Solana chunks without redeclaring Buffer
 const setupBufferGlobals = () => {
   return {
     name: 'setup-buffer-globals',
     generateBundle(options, bundle) {
-      // Find Solana chunk and inject Buffer setup code AFTER imports
+      // Find all Solana-related chunks and inject Buffer setup code AFTER imports
+      const solanaChunkNames = ['solana-core', 'solana-spl', 'solana'];
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
-        if (chunk.type === 'chunk' && chunk.name === 'solana') {
+        if (chunk.type === 'chunk' && solanaChunkNames.includes(chunk.name || '')) {
           // Find where imports end and inject setup code there
           // This ensures Buffer is available when we try to access it
           const importEnd = chunk.code.lastIndexOf('import ');
@@ -201,21 +202,26 @@ export default defineConfig({
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
-            // polyfills.ts must be in the entry chunk to ensure Buffer loads first
-            // Solana packages - bundle Buffer and BN WITH Solana to ensure they're always available
-            // This prevents initialization order issues
+            // Split Solana packages to break circular dependencies
+            // @solana/web3.js is the core - load it first
+            if (id.includes('@solana/web3.js')) {
+              return 'solana-core';
+            }
+            // @solana/spl-token depends on web3.js - load after
+            if (id.includes('@solana/spl-token')) {
+              return 'solana-spl';
+            }
+            // Other Solana packages
             if (id.includes('@solana/')) {
               return 'solana';
             }
-            // BN.js - bundle with Solana packages to prevent "Cannot access BN before initialization"
-            // Solana packages depend on BN, so they must be together
+            // BN.js - bundle with solana-core (web3.js needs it)
             if (id.includes('bn.js')) {
-              return 'solana'; // Bundle BN with Solana
+              return 'solana-core'; // Bundle BN with solana-core
             }
-            // Buffer - bundle with Solana packages so they're always together
-            // This ensures Buffer is available when Solana chunk executes
+            // Buffer - bundle with solana-core (web3.js needs it)
             if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
-              return 'solana'; // Bundle Buffer with Solana
+              return 'solana-core'; // Bundle Buffer with solana-core
             }
             // Crypto-related packages - keep separate to avoid minification issues
             if (id.includes('crypto') || id.includes('@noble/')) {
