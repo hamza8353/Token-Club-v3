@@ -173,6 +173,47 @@ const setupBufferGlobals = () => {
         }
       }
       
+      // Handle viem chunk - fix TDZ errors for imports from solana chunk
+      if (chunk.name === 'viem') {
+        // Fix TDZ errors for IntegerOutOfRangeError$1 and other error classes imported from solana
+        // The issue is that these are being assigned in object literals before imports are resolved
+        // Make assignments lazy by using getter functions
+        let fixedCode = code;
+        
+        // Fix assignment in object literal: IntegerOutOfRangeError: IntegerOutOfRangeError$1
+        // Replace with lazy getter that only evaluates when accessed
+        fixedCode = fixedCode.replace(
+          /(\w+):\s*IntegerOutOfRangeError\$1(,|\s*})/g,
+          (match, key, suffix) => {
+            return `${key}: (function(){var _cache;return function(){if(!_cache){if(typeof IntegerOutOfRangeError$1==='undefined'){throw new Error('Cannot access IntegerOutOfRangeError$1: not initialized');}_cache=IntegerOutOfRangeError$1;}return _cache;};})()${suffix}`;
+          }
+        );
+        
+        // Fix direct uses: throw new IntegerOutOfRangeError$1(...)
+        // Make it lazy
+        fixedCode = fixedCode.replace(
+          /throw new IntegerOutOfRangeError\$1\(/g,
+          'throw new (function(){var _cache;return function(){if(!_cache){if(typeof IntegerOutOfRangeError$1===\'undefined\'){throw new Error(\'Cannot access IntegerOutOfRangeError$1: not initialized\');}_cache=IntegerOutOfRangeError$1;}return _cache;};})()('
+        );
+        
+        // Fix other error classes that might have the same issue
+        fixedCode = fixedCode.replace(
+          /(\w+):\s*InvalidBytesBooleanError\$1(,|\s*})/g,
+          (match, key, suffix) => {
+            return `${key}: (function(){var _cache;return function(){if(!_cache){if(typeof InvalidBytesBooleanError$1==='undefined'){throw new Error('Cannot access InvalidBytesBooleanError$1: not initialized');}_cache=InvalidBytesBooleanError$1;}return _cache;};})()${suffix}`;
+          }
+        );
+        
+        fixedCode = fixedCode.replace(
+          /(\w+):\s*SizeOverflowError\$2(,|\s*})/g,
+          (match, key, suffix) => {
+            return `${key}: (function(){var _cache;return function(){if(!_cache){if(typeof SizeOverflowError$2==='undefined'){throw new Error('Cannot access SizeOverflowError$2: not initialized');}_cache=SizeOverflowError$2;}return _cache;};})()${suffix}`;
+          }
+        );
+        
+        return fixedCode;
+      }
+      
       return null; // No changes for other chunks
     },
   };
@@ -298,7 +339,11 @@ export default defineConfig({
         // Ensure proper chunk ordering - solana-deps must load before solana-core
         // This prevents "Class extends value undefined" errors
         chunkFileNames: (chunkInfo) => {
-          // Ensure solana-deps loads first by giving it a name that sorts first
+          // Ensure solana loads before viem to prevent TDZ errors
+          // viem imports from solana, so solana must be initialized first
+          if (chunkInfo.name === 'solana') {
+            return 'assets/js/00-solana-[hash].js';
+          }
           if (chunkInfo.name === 'solana-deps') {
             return 'assets/js/00-solana-deps-[hash].js';
           }
