@@ -79,15 +79,17 @@ const setupBufferGlobals = () => {
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
-          // CRITICAL: Use Buffer$1 from imports (it's available after imports initialize)
-          // Also check safeBufferExports and global Buffer as fallbacks
-          // This assignment happens after imports, so Buffer$1 should be available
+          // CRITICAL: Cannot use Buffer$1 or safeBufferExports here - they're in TDZ at module init
+          // The _Buffer assignment happens at module initialization, before imports are ready
+          // Use ONLY global Buffer sources that should be set by solana-deps chunk
           let fixedCode = code;
-          // Replace with safe access that uses Buffer$1 (imported, available after module init)
-          // Priority: Buffer$1 (imported) > safeBufferExports.Buffer > global Buffer
+          // Replace with safe access that uses ONLY global Buffer (no imported variables)
+          // Priority: global Buffer > globalThis.Buffer > window.Buffer > global.Buffer
+          // The setup code above should have set Buffer globally by the time _Buffer is used
+          // But for assignment, we can only use global sources (not imported ones due to TDZ)
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (typeof Buffer$1 !== \'undefined\' ? Buffer$1 : (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer ? safeBufferExports.Buffer : (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : void 0)))));'
+            'var _Buffer = (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : (typeof global !== \'undefined\' && global.Buffer ? global.Buffer : void 0))));'
           );
           
           return fixedCode.slice(0, charIndex) + setupCode + fixedCode.slice(charIndex);
