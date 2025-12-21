@@ -79,13 +79,15 @@ const setupBufferGlobals = () => {
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
-          // Use setTimeout to defer access until after imports are initialized, OR use global Buffer
-          // Better: Use global Buffer that should be set by solana-deps
+          // CRITICAL: Use Buffer$1 from imports (it's available after imports initialize)
+          // Also check safeBufferExports and global Buffer as fallbacks
+          // This assignment happens after imports, so Buffer$1 should be available
           let fixedCode = code;
-          // Replace with safe access that doesn't use Buffer$1 (TDZ issue) but uses global Buffer
+          // Replace with safe access that uses Buffer$1 (imported, available after module init)
+          // Priority: Buffer$1 (imported) > safeBufferExports.Buffer > global Buffer
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer) || (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : void 0)));'
+            'var _Buffer = (typeof Buffer$1 !== \'undefined\' ? Buffer$1 : (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer ? safeBufferExports.Buffer : (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : void 0)))));'
           );
           
           return fixedCode.slice(0, charIndex) + setupCode + fixedCode.slice(charIndex);
