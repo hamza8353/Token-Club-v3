@@ -71,18 +71,21 @@ const setupBufferGlobals = () => {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
-          // Inject code that accesses Buffer from global scope (set by solana-deps)
-          // Since solana-deps runs first and sets Buffer globally, we can access it from global scope
-          // Also try to access from imported variables as fallback
-          const setupCode = `\n(function(){try{let B;if(typeof Buffer$1!=='undefined'){B=Buffer$1;}else if(typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer){B=safeBufferExports.Buffer;}else if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}else if(typeof global!=='undefined'&&global.Buffer){B=global.Buffer;}else if(typeof Buffer!=='undefined'){B=Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+          // CRITICAL: Don't access Buffer$1 or safeBufferExports here - they're in temporal dead zone!
+          // The setup code runs immediately after imports, but imports aren't initialized yet
+          // Instead, rely ONLY on global Buffer that should be set by solana-deps chunk (which loads first)
+          // solana-deps sets Buffer globally, so we can access it from global scope here
+          const setupCode = `\n(function(){try{let B;if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}else if(typeof global!=='undefined'&&global.Buffer){B=global.Buffer;}else if(typeof Buffer!=='undefined'){B=Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
           
           // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
           // Replace: var _Buffer = safeBufferExports.Buffer;
-          // With safe access that falls back to global Buffer
+          // Use setTimeout to defer access until after imports are initialized, OR use global Buffer
+          // Better: Use global Buffer that should be set by solana-deps
           let fixedCode = code;
+          // Replace with safe access that doesn't use Buffer$1 (TDZ issue) but uses global Buffer
           fixedCode = fixedCode.replace(
             /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
-            'var _Buffer = (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer) || (typeof Buffer$1 !== \'undefined\' ? Buffer$1 : (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : void 0))));'
+            'var _Buffer = (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer) || (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : void 0)));'
           );
           
           return fixedCode.slice(0, charIndex) + setupCode + fixedCode.slice(charIndex);
