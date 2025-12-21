@@ -159,6 +159,8 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+        // Ensure proper module format
+        format: 'es',
       },
       onwarn(warning, warn) {
         // Suppress sourcemap warnings for Metaplex package
