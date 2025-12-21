@@ -296,8 +296,8 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             // Bundle BN and Buffer WITH Solana packages to ensure they're in same chunk
             // This avoids timing/initialization issues with separate chunks
-            // @solana/web3.js with BN, Buffer, and rpc-websockets (CommonClient)
-            if (id.includes('@solana/web3.js') || id.includes('bn.js') || (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) || id.includes('rpc-websockets')) {
+            // @solana/web3.js with BN, Buffer, rpc-websockets (CommonClient), and EventEmitter
+            if (id.includes('@solana/web3.js') || id.includes('bn.js') || (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) || id.includes('rpc-websockets') || id.includes('eventemitter3') || id.includes('events')) {
               return 'solana'; // Bundle together
             }
             // @solana/spl-token - separate chunk
