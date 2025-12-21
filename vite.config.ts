@@ -71,11 +71,21 @@ const setupBufferGlobals = () => {
             charIndex += lines[i].length + 1; // +1 for the newline
           }
           
-          // Inject code that accesses Buffer from imported deps and sets it globally
-          // Access Buffer$1 from the import (it's imported as Buffer$1 from solana-deps)
-          // Also try to get it from safeBufferExports if available
-          const setupCode = `\n(function(){try{let B;try{B=typeof Buffer$1!=='undefined'?Buffer$1:void 0;}catch(e){}if(!B){try{B=typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer?safeBufferExports.Buffer:void 0;}catch(e){}}if(!B){B=typeof Buffer!=='undefined'?Buffer:void 0;}if(!B){B=typeof globalThis!=='undefined'&&globalThis.Buffer?globalThis.Buffer:void 0;}if(!B){B=typeof window!=='undefined'&&window.Buffer?window.Buffer:void 0;}if(!B){B=typeof global!=='undefined'&&global.Buffer?global.Buffer:void 0;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
-          return code.slice(0, charIndex) + setupCode + code.slice(charIndex);
+          // Inject code that accesses Buffer from global scope (set by solana-deps)
+          // Since solana-deps runs first and sets Buffer globally, we can access it from global scope
+          // Also try to access from imported variables as fallback
+          const setupCode = `\n(function(){try{let B;if(typeof Buffer$1!=='undefined'){B=Buffer$1;}else if(typeof safeBufferExports!=='undefined'&&safeBufferExports&&safeBufferExports.Buffer){B=safeBufferExports.Buffer;}else if(typeof globalThis!=='undefined'&&globalThis.Buffer){B=globalThis.Buffer;}else if(typeof window!=='undefined'&&window.Buffer){B=window.Buffer;}else if(typeof global!=='undefined'&&global.Buffer){B=global.Buffer;}else if(typeof Buffer!=='undefined'){B=Buffer;}if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+          
+          // Also fix any direct access to safeBufferExports.Buffer to handle undefined case
+          // Replace: var _Buffer = safeBufferExports.Buffer;
+          // With safe access that falls back to global Buffer
+          let fixedCode = code;
+          fixedCode = fixedCode.replace(
+            /var\s+_Buffer\s*=\s*safeBufferExports\.Buffer;/g,
+            'var _Buffer = (typeof safeBufferExports !== \'undefined\' && safeBufferExports && safeBufferExports.Buffer) || (typeof Buffer$1 !== \'undefined\' ? Buffer$1 : (typeof Buffer !== \'undefined\' ? Buffer : (typeof globalThis !== \'undefined\' && globalThis.Buffer ? globalThis.Buffer : (typeof window !== \'undefined\' && window.Buffer ? window.Buffer : void 0))));'
+          );
+          
+          return fixedCode.slice(0, charIndex) + setupCode + fixedCode.slice(charIndex);
         } else {
           // No imports found, inject at beginning
           const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
@@ -83,11 +93,25 @@ const setupBufferGlobals = () => {
         }
       }
       
-      // Handle solana-deps chunk - ensure Buffer is exported and set globally
+      // Handle solana-deps chunk - ensure Buffer is exported and set globally FIRST
       if (chunk.name === 'solana-deps') {
-        // Inject at the end to ensure Buffer is available globally
-        const setupCode = `\n(function(){try{if(typeof Buffer!=='undefined'){if(typeof globalThis!=='undefined'){globalThis.Buffer=Buffer;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=Buffer;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=Buffer;}}}catch(e){}})();`;
-        return code + setupCode;
+        // Find where exports are and inject Buffer setup BEFORE exports
+        // This ensures Buffer is available globally before other chunks try to use it
+        const exportIndex = code.lastIndexOf('export ');
+        if (exportIndex !== -1) {
+          // Find the line before exports
+          const beforeExport = code.lastIndexOf('\n', exportIndex);
+          const insertPoint = beforeExport !== -1 ? beforeExport + 1 : exportIndex;
+          
+          // Inject Buffer setup code that accesses Buffer from module scope
+          // This runs before exports, ensuring Buffer is global when other chunks import
+          const setupCode = `(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();\n`;
+          return code.slice(0, insertPoint) + setupCode + code.slice(insertPoint);
+        } else {
+          // No exports found, inject at end
+          const setupCode = `\n(function(){try{const B=typeof Buffer!=='undefined'?Buffer:void 0;if(B){if(typeof globalThis!=='undefined'){globalThis.Buffer=B;globalThis.global=globalThis;}if(typeof window!=='undefined'){window.Buffer=B;window.global=window;window.globalThis=window;}if(typeof global!=='undefined'){global.Buffer=B;}}}catch(e){}})();`;
+          return code + setupCode;
+        }
       }
       
       // Handle solana-spl chunk
