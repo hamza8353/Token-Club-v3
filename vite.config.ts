@@ -196,6 +196,8 @@ export default defineConfig({
         hoistTransitiveImports: true,
         // Use external live bindings to handle circular dependencies properly
         externalLiveBindings: false,
+        // Experimental: Set minimum chunk size to encourage more splitting
+        experimentalMinChunkSize: 20000, // 20KB minimum to prevent huge chunks
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
@@ -227,8 +229,14 @@ export default defineConfig({
             if (id.includes('@meteora-ag/')) {
               return 'meteora';
             }
-            // Reown/AppKit packages
-            if (id.includes('@reown/')) {
+            // Reown/AppKit packages - split further to reduce chunk size
+            if (id.includes('@reown/appkit')) {
+              return 'reown-core';
+            }
+            if (id.includes('@reown/appkit-adapter')) {
+              return 'reown-adapter';
+            }
+            if (id.includes('@reown/') || id.includes('@walletconnect/')) {
               return 'reown';
             }
             // React packages
@@ -239,11 +247,24 @@ export default defineConfig({
             if (id.includes('lucide-react')) {
               return 'icons';
             }
+            // Framer Motion - separate chunk
+            if (id.includes('framer-motion')) {
+              return 'framer-motion';
+            }
+            // Viem and related packages - separate chunk (used by Reown)
+            if (id.includes('viem') || id.includes('@wagmi/')) {
+              return 'viem';
+            }
             // Don't split bs58 - let it bundle with packages that use it
             // This avoids dependency resolution issues (base-x, etc.)
             if (id.includes('bs58') || id.includes('base-x')) {
               // Return undefined to let it bundle with its parent
               return undefined;
+            }
+            // Split other vendor packages into smaller chunks
+            // Large utility libraries
+            if (id.includes('lodash') || id.includes('ramda')) {
+              return 'utils';
             }
             // Other vendor packages
             return 'vendor';
@@ -284,7 +305,7 @@ export default defineConfig({
       // Use exports mode to prevent circular dependency issues
       preserveEntrySignatures: 'exports-only',
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500, // Lower limit to encourage better chunking
     // Enable compression
     reportCompressedSize: true,
   },
