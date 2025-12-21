@@ -55,7 +55,7 @@ export default defineConfig({
     }),
     nodePolyfills({
       // Enable polyfills for Node.js modules
-      include: ['assert', 'buffer', 'process'],
+      include: ['assert', 'buffer', 'process', 'crypto'],
       globals: {
         Buffer: true,
         global: true,
@@ -134,14 +134,28 @@ export default defineConfig({
     target: 'esnext',
     minify: 'esbuild',
     cssMinify: true,
+    // Ensure proper module format
+    modulePreload: {
+      polyfill: true,
+      resolveDependencies: (filename, deps) => {
+        // Filter out any data URIs or invalid modulepreload entries
+        return deps.filter(dep => !dep.startsWith('data:'));
+      },
+    },
     // Enable source maps for debugging (disable in production for smaller bundles)
     sourcemap: false,
     // Optimize chunk splitting
     rollupOptions: {
       output: {
+        // Ensure proper format for ES modules
+        format: 'es',
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
+            // Crypto-related packages - keep separate to avoid minification issues
+            if (id.includes('crypto') || id.includes('@noble/')) {
+              return 'crypto';
+            }
             // Solana packages - separate to avoid circular deps
             if (id.includes('@solana/')) {
               return 'solana';
@@ -166,9 +180,13 @@ export default defineConfig({
             if (id.includes('lucide-react')) {
               return 'icons';
             }
-            // BN.js and other math libraries
-            if (id.includes('bn.js') || id.includes('bs58')) {
-              return 'crypto';
+            // BN.js - keep separate to avoid circular deps
+            if (id.includes('bn.js')) {
+              return 'bn';
+            }
+            // bs58 and other encoding libraries
+            if (id.includes('bs58') || id.includes('buffer')) {
+              return 'encoding';
             }
             // Other vendor packages
             return 'vendor';
@@ -186,6 +204,10 @@ export default defineConfig({
       onwarn(warning, warn) {
         // Suppress sourcemap warnings for Metaplex package
         if (warning.code === 'SOURCEMAP_ERROR' && warning.id?.includes('@metaplex-foundation/mpl-token-metadata')) {
+          return;
+        }
+        // Suppress circular dependency warnings for crypto-related packages
+        if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message?.includes('crypto')) {
           return;
         }
         warn(warning);
