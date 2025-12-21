@@ -62,6 +62,8 @@ export default defineConfig({
         global: true,
         process: true,
       },
+      // Ensure Buffer is available before other modules load
+      protocolImports: true,
     }),
     VitePWA({
       registerType: 'autoUpdate',
@@ -130,6 +132,8 @@ export default defineConfig({
   define: {
     'global': 'globalThis',
     'process.env': {},
+    // Ensure Buffer is available globally for Solana packages
+    'process.browser': true,
   },
   build: {
     target: 'esnext',
@@ -155,11 +159,17 @@ export default defineConfig({
         manualChunks: (id) => {
           // Split node_modules into separate chunks to avoid circular dependencies
           if (id.includes('node_modules')) {
+            // Buffer MUST be loaded first - Solana packages depend on it
+            // Bundle it separately to ensure it loads before solana chunk
+            if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
+              return 'buffer';
+            }
             // Crypto-related packages - keep separate to avoid minification issues
             if (id.includes('crypto') || id.includes('@noble/')) {
               return 'crypto';
             }
             // Solana packages - separate to avoid circular deps
+            // Buffer chunk will load before this, ensuring Buffer is available
             if (id.includes('@solana/')) {
               return 'solana';
             }
@@ -193,10 +203,6 @@ export default defineConfig({
               // Return undefined to let it bundle with its parent
               return undefined;
             }
-            // buffer - keep separate to avoid minification issues
-            if (id.includes('buffer') && !id.includes('bs58') && !id.includes('base-x')) {
-              return 'buffer';
-            }
             // Other vendor packages
             return 'vendor';
           }
@@ -209,6 +215,9 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+        // Ensure proper chunk loading order - buffer must load before solana
+        // This prevents "extends undefined" errors in Solana packages
+        chunkGroupingSize: 50000,
       },
       onwarn(warning, warn) {
         // Suppress sourcemap warnings for Metaplex package

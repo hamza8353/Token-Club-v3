@@ -1,3 +1,10 @@
+// Ensure Buffer is available globally before Solana packages load
+import { Buffer } from 'buffer'
+if (typeof window !== 'undefined') {
+  (window as any).Buffer = Buffer
+  ;(window as any).global = window
+}
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
