@@ -142,13 +142,7 @@ export default defineConfig({
         // Don't mangle names that might be used as exports
         keep_classnames: true,
       },
-      mangle: {
-        // Preserve function names
-        keep_fnames: true,
-        keep_classnames: true,
-        // Don't mangle properties that might be accessed dynamically
-        properties: false,
-      },
+      mangle: false, // Disable mangling entirely to prevent export/import issues
       format: {
         // Preserve comments for debugging
         comments: false,
