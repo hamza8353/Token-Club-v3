@@ -175,39 +175,57 @@ const setupBufferGlobals = () => {
       
       // Handle viem chunk - fix TDZ errors for imports from solana chunk
       if (chunk.name === 'viem') {
-        // Fix TDZ errors for IntegerOutOfRangeError$1 and other error classes imported from solana
+        // Fix TDZ errors for all error classes and utilities imported from solana
         // The issue is that these are being assigned in object literals before imports are resolved
         // Make assignments lazy by using getter functions
         let fixedCode = code;
         
-        // Fix assignment in object literal: IntegerOutOfRangeError: IntegerOutOfRangeError$1
-        // Replace with lazy getter that only evaluates when accessed
+        // Helper function to create lazy getter (as string for replacement)
+        const createLazyGetterStr = (varName: string) => {
+          return `(function(){var _cache;return function(){if(!_cache){if(typeof ${varName}==='undefined'){throw new Error('Cannot access ${varName}: not initialized');}_cache=${varName};}return _cache;};})()`;
+        };
+        
+        // Fix all error classes with $ suffix (e.g., IntegerOutOfRangeError$1, InvalidBytesBooleanError$1, SizeOverflowError$2)
+        // Pattern: Key: ErrorName$N
         fixedCode = fixedCode.replace(
-          /(\w+):\s*IntegerOutOfRangeError\$1(,|\s*})/g,
-          (match, key, suffix) => {
-            return `${key}: (function(){var _cache;return function(){if(!_cache){if(typeof IntegerOutOfRangeError$1==='undefined'){throw new Error('Cannot access IntegerOutOfRangeError$1: not initialized');}_cache=IntegerOutOfRangeError$1;}return _cache;};})()${suffix}`;
+          /(\w+):\s*(\w+Error)\$(\d+)(,|\s*})/g,
+          (match, key, errorName, suffixNum, suffix) => {
+            const varName = `${errorName}$${suffixNum}`;
+            return `${key}: ${createLazyGetterStr(varName)}${suffix}`;
           }
         );
         
-        // Fix direct uses: throw new IntegerOutOfRangeError$1(...)
-        // Make it lazy
-        fixedCode = fixedCode.replace(
-          /throw new IntegerOutOfRangeError\$1\(/g,
-          'throw new (function(){var _cache;return function(){if(!_cache){if(typeof IntegerOutOfRangeError$1===\'undefined\'){throw new Error(\'Cannot access IntegerOutOfRangeError$1: not initialized\');}_cache=IntegerOutOfRangeError$1;}return _cache;};})()('
-        );
+        // Fix error classes without $ suffix (e.g., InvalidHexBooleanError)
+        // Pattern: Key: ErrorName (but not ErrorName$N)
+        const errorClasses = [
+          'InvalidHexBooleanError',
+          'IntegerOutOfRangeError',
+          'InvalidBytesBooleanError',
+          'SizeOverflowError',
+        ];
         
-        // Fix other error classes that might have the same issue
-        fixedCode = fixedCode.replace(
-          /(\w+):\s*InvalidBytesBooleanError\$1(,|\s*})/g,
-          (match, key, suffix) => {
-            return `${key}: (function(){var _cache;return function(){if(!_cache){if(typeof InvalidBytesBooleanError$1==='undefined'){throw new Error('Cannot access InvalidBytesBooleanError$1: not initialized');}_cache=InvalidBytesBooleanError$1;}return _cache;};})()${suffix}`;
-          }
-        );
+        for (const errorClass of errorClasses) {
+          // Fix in object literals - make sure we don't match ErrorName$N
+          fixedCode = fixedCode.replace(
+            new RegExp(`(\\w+):\\s*${errorClass}(?!\\$)(,|\\s*})`, 'g'),
+            (match, key, suffix) => {
+              return `${key}: ${createLazyGetterStr(errorClass)}${suffix}`;
+            }
+          );
+          
+          // Fix direct uses: throw new ErrorClass(...)
+          fixedCode = fixedCode.replace(
+            new RegExp(`throw new ${errorClass}(?!\\$)\\(`, 'g'),
+            `throw new ${createLazyGetterStr(errorClass)}()(`
+          );
+        }
         
+        // Also fix any remaining direct uses of error classes with $ suffix
         fixedCode = fixedCode.replace(
-          /(\w+):\s*SizeOverflowError\$2(,|\s*})/g,
-          (match, key, suffix) => {
-            return `${key}: (function(){var _cache;return function(){if(!_cache){if(typeof SizeOverflowError$2==='undefined'){throw new Error('Cannot access SizeOverflowError$2: not initialized');}_cache=SizeOverflowError$2;}return _cache;};})()${suffix}`;
+          /throw new (\w+Error)\$(\d+)\(/g,
+          (match, errorName, suffixNum) => {
+            const varName = `${errorName}$${suffixNum}`;
+            return `throw new ${createLazyGetterStr(varName)}()(`;
           }
         );
         
