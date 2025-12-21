@@ -132,8 +132,28 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    minify: 'esbuild',
+    // Use terser instead of esbuild for better handling of encoding libraries
+    minify: 'terser',
     cssMinify: true,
+    terserOptions: {
+      compress: {
+        // Preserve function names to prevent "X is not a function" errors
+        keep_fnames: true,
+        // Don't mangle names that might be used as exports
+        keep_classnames: true,
+      },
+      mangle: {
+        // Preserve function names
+        keep_fnames: true,
+        keep_classnames: true,
+        // Don't mangle properties that might be accessed dynamically
+        properties: false,
+      },
+      format: {
+        // Preserve comments for debugging
+        comments: false,
+      },
+    },
     // Ensure proper module format
     modulePreload: {
       polyfill: true,
@@ -184,9 +204,13 @@ export default defineConfig({
             if (id.includes('bn.js')) {
               return 'bn';
             }
-            // bs58 and other encoding libraries
-            if (id.includes('bs58') || id.includes('buffer')) {
-              return 'encoding';
+            // bs58 - keep separate from buffer to avoid conflicts
+            if (id.includes('bs58')) {
+              return 'bs58';
+            }
+            // buffer - keep separate to avoid minification issues
+            if (id.includes('buffer') && !id.includes('bs58')) {
+              return 'buffer';
             }
             // Other vendor packages
             return 'vendor';
@@ -210,8 +234,14 @@ export default defineConfig({
         if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message?.includes('crypto')) {
           return;
         }
+        // Suppress circular dependency warnings for encoding packages
+        if (warning.code === 'CIRCULAR_DEPENDENCY' && (warning.message?.includes('bs58') || warning.message?.includes('buffer'))) {
+          return;
+        }
         warn(warning);
       },
+      // Preserve module boundaries to prevent minification issues
+      preserveEntrySignatures: 'strict',
     },
     chunkSizeWarningLimit: 1000,
     // Enable compression
