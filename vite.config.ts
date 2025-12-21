@@ -277,7 +277,8 @@ const setupBufferGlobals = () => {
           const line = lines[i];
           
           // Check if this line starts a class extends y$N pattern
-          const classExtendsMatch = line.match(/^(\s*)(let|const|var)\s+(\w+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/);
+          // Variable names can have $ in them (e.g., i$4), so use [\w$]+ instead of \w+
+          const classExtendsMatch = line.match(/^(\s*)(let|const|var)\s+([\w$]+)\s+=\s*class\s+(\w+)\s+extends\s+(\w+\$\d+)\s*{/);
           
           if (classExtendsMatch && !inIIFE) {
             const [, indent, keyword, varName, className, extendsVar] = classExtendsMatch;
