@@ -4,7 +4,6 @@ import {
   Droplets, 
   Flame, 
   Wallet, 
-  Menu,
   ArrowLeftRight,
   LayoutGrid,
   MessageCircle,
@@ -57,11 +56,10 @@ function throttle<T extends (...args: any[]) => void>(func: T, limit: number): T
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('create');
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
   const [blogSlug, setBlogSlug] = useState<string>('how-to-create-solana-meme-coin');
-  const { network, isDevnet } = useNetwork();
+  const { isDevnet } = useNetwork();
 
   const tabToPath: Record<TabId, string> = {
     create: '/',
@@ -169,7 +167,7 @@ const App: React.FC = () => {
   );
 
   // Handle navigation to liquidity with token address
-  const handleNavigateToLiquidity = useCallback((tokenMint: string) => {
+  const handleNavigateToLiquidity = useCallback((_tokenMint: string) => {
     navigate('/liquidity');
     // Token address is stored in localStorage, LiquidityModule will pick it up
   }, [navigate]);

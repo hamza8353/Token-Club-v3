@@ -99,6 +99,7 @@ export const PLATFORM_FEES = {
   LIQUIDITY_REMOVE: 0.11, // SOL - Remove liquidity
   LOCK_LIQUIDITY: 0.11, // SOL - Lock liquidity
   CLAIM_FEES: 0.05, // SOL - Claim earned fees
+  LIQUIDITY_BURN: 0.11, // SOL - Burn liquidity
   CLOSE_ACCOUNTS: 0.01, // SOL - Wallet cleanup
   SWAP_PERCENTAGE: 0.011, // 1.1% of swap amount
 };

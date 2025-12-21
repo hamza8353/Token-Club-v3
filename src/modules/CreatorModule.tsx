@@ -125,7 +125,8 @@ const CreatorModule = React.memo(() => {
       setCurrentStep(2);
       let imageUri = '';
       if (imageFile) {
-        imageUri = await creator.uploadImage(imageFile);
+        const uploadedUri = await creator.uploadImage(imageFile);
+        imageUri = uploadedUri || '';
         if (!imageUri) {
           throw new Error('Failed to upload image');
         }
@@ -247,6 +248,8 @@ const CreatorModule = React.memo(() => {
         const totalCost = creator.calculateCost({
           name,
           symbol,
+          decimals: parseInt(decimals) || 9,
+          totalSupply: parseFloat(totalSupply.replace(/,/g, '')) || 0,
           revokeMintAuthority: revokeMint,
           revokeFreezeAuthority: revokeFreeze,
           creatorWebsite: (creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
@@ -259,7 +262,7 @@ const CreatorModule = React.memo(() => {
           tokenName: name,
           hasRevokeMint: revokeMint,
           hasRevokeFreeze: revokeFreeze,
-          hasAdvancedFeatures: (creatorWebsite && creatorWebsite !== 'tokenclub.fun') || (creatorName && creatorName !== 'tokenclub'),
+          hasAdvancedFeatures: Boolean((creatorWebsite && creatorWebsite !== 'tokenclub.fun') || (creatorName && creatorName !== 'tokenclub')),
           totalCost,
         });
 

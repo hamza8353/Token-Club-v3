@@ -16,7 +16,7 @@ const GA_MEASUREMENT_ID = 'G-YQPF87DGYM';
  */
 export const initAnalytics = (): void => {
   // Check if already initialized
-  if (window.gtag) {
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
     return;
   }
 

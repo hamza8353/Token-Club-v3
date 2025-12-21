@@ -1,7 +1,6 @@
 import React from 'react';
 import { Wallet } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
-import { useNetwork } from '../contexts/NetworkContext';
 
 export const WalletButton: React.FC = () => {
   const { isConnected, address, connect, disconnect } = useWallet();

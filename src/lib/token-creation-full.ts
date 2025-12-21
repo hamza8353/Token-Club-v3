@@ -19,7 +19,6 @@ import {
   getAccount,
   TokenAccountNotFoundError,
 } from '@solana/spl-token';
-import { PublicKey } from '@solana/web3.js';
 
 // Metaplex Token Metadata Program ID
 // Address: metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s
@@ -244,7 +243,7 @@ export class FullTokenCreator {
         const revokeMintIx = createSetAuthorityInstruction(
           mintPublicKey,
           payer,
-          AuthorityType.MintAccount,
+          AuthorityType.MintTokens,
           null,
           [],
           TOKEN_PROGRAM_ID

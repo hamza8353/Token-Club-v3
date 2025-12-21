@@ -36,7 +36,7 @@ export class JupiterClient {
     // API key is configured and ready to use
   }
 
-  private getHeaders(requireAuth: boolean = false, useXApiKey: boolean = false): HeadersInit {
+  private getHeaders(_requireAuth: boolean = false, useXApiKey: boolean = false): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
@@ -73,7 +73,9 @@ export class JupiterClient {
     }
     
     // Now we can decompile the transaction with resolved lookup tables
-    const message = TransactionMessage.decompile(transaction.message, lookupTables);
+    const message = TransactionMessage.decompile(transaction.message, {
+      addressLookupTableAccounts: lookupTables,
+    });
     
     // Add platform fee transfer instruction at the beginning
     // Fee is 1.1% of the swap amount in SOL

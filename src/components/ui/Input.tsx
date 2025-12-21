@@ -1,6 +1,5 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
-import { formatNumberWithoutTrailingZeros } from '../../lib/number-format';
 
 interface InputProps {
   label?: string;

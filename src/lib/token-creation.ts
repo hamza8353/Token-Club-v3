@@ -48,9 +48,9 @@ export class TokenCreator {
   /**
    * Calculate total cost including platform fees
    */
-  calculateCost(params: TokenCreationParams): number {
-    // Fixed fee of 0.05 SOL for token creation regardless of features
-    return PLATFORM_FEES.TOKEN_CREATION;
+  calculateCost(_params: TokenCreationParams): number {
+    // Fixed fee of 0.11 SOL for token creation
+    return PLATFORM_FEES.TOKEN_CREATION_BASE;
   }
 
   /**
@@ -115,7 +115,7 @@ export class TokenCreator {
           payerKeypair || payer as any,
           mintPublicKey,
           payer,
-          AuthorityType.MintAccount,
+          AuthorityType.MintTokens,
           null,
           [],
           undefined,

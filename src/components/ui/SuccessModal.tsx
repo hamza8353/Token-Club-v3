@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Copy, ExternalLink, X, Loader, Rocket, Droplet, Upload, Lock, Coins, Flame } from 'lucide-react';
+import { Check, Copy, ExternalLink, X, Loader, Rocket, Droplet, Upload, Lock, Coins } from 'lucide-react';
 import { useNetwork } from '../../contexts/NetworkContext';
 
 export type ActionType = 'CREATE' | 'INITIALIZE' | 'ADD' | 'REMOVE' | 'LOCK' | 'CLAIM' | 'CLEANUP' | 'SWAP';
@@ -302,7 +302,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
         ) : (
           <div className="space-y-4">
             {((stepDescriptions && stepDescriptions.length > 0) 
-              ? stepDescriptions.map((desc, idx) => ({ title: desc, description: undefined, signature: undefined }))
+              ? stepDescriptions.map((desc, _idx) => ({ title: desc, description: undefined, signature: undefined }))
               : steps || []).map((step, index) => {
               const stepNumber = index + 1;
               const isCompleted = stepNumber < currentStep;

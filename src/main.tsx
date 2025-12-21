@@ -11,8 +11,12 @@ initAnalytics()
 
 // PWA: register service worker (silent; no console output)
 if (import.meta.env.PROD) {
-  import('virtual:pwa-register').then(({ registerSW }) => {
-    registerSW({ immediate: true });
+  import('virtual:pwa-register').then((module) => {
+    if (module && module.registerSW) {
+      module.registerSW({ immediate: true });
+    }
+  }).catch(() => {
+    // PWA registration failed, continue without it
   });
 }
 

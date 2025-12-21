@@ -5,7 +5,7 @@ import { SuccessModal, SuccessModalResult } from '../components/ui/SuccessModal'
 import TokenSelector, { Token } from '../components/ui/TokenSelector';
 import { useWallet } from '../contexts/WalletContext';
 import { useNetwork } from '../contexts/NetworkContext';
-import { jupiterClient } from '../lib/jupiter';
+import { jupiterClient, JupiterQuoteResponse } from '../lib/jupiter';
 import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, getAccount, getMint, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { getTokenData } from '../lib/token-memory';
@@ -399,6 +399,9 @@ const SwapModule = React.memo(() => {
 
       // Sign and send
       setCurrentStep(5);
+      if (!signAndSendTransaction) {
+        throw new Error('Wallet not connected');
+      }
       const signature = await signAndSendTransaction(transaction);
       
       if (signature) {

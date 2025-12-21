@@ -34,7 +34,7 @@ export async function fetchWalletPools(
     // Found token accounts (count only, no sensitive data logged)
 
     const pools: WalletPool[] = [];
-    const cpAmm = new CpAmm(connection, METEORA_DEFAULT_CONFIG);
+    const cpAmm = new CpAmm(connection);
 
     // Process each token account to find position NFTs
     // Position NFTs are NFTs, so they typically have a balance of 1
@@ -125,7 +125,7 @@ export async function fetchPoolByPositionNft(
   positionNftMint: string
 ): Promise<WalletPool | null> {
   try {
-    const cpAmm = new CpAmm(connection, METEORA_DEFAULT_CONFIG);
+    const cpAmm = new CpAmm(connection);
     const positionMintPubkey = new PublicKey(positionNftMint);
     const positionPda = derivePositionAddress(positionMintPubkey);
     
