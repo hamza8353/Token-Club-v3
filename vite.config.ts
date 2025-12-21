@@ -284,12 +284,21 @@ const setupBufferGlobals = () => {
             const [, indent, keyword, varName, className, extendsVar] = classExtendsMatch;
             inIIFE = true;
             braceDepth = 1;
-            // Access extendsVar directly in extends clause - don't try to cache it
-            // The IIFE ensures the extendsVar is evaluated when the class is created, not at module init
-            // But we still need to access it directly for extends to work
-            // Use a getter function that's called immediately to ensure extendsVar is available
-            iifeStart = `${indent}${keyword} ${varName} = (function(){var _getExtends=function(){if(typeof ${extendsVar}==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized. Ensure react chunk (01-react) loads before vendor chunk.');}return ${extendsVar};};return class ${className} extends _getExtends() {`;
+            // Store varName and extendsVar for use when closing the IIFE
+            let storedVarName = varName;
+            let storedExtendsVar = extendsVar;
+            let storedClassName = className;
+            // Use a factory function that creates the class when y$2 is available
+            // Store the class definition in a variable and assign it later
+            // This delays the class creation until y$2 is initialized
+            const factoryVarName = `_create${varName}`;
+            iifeStart = `${indent}${keyword} ${varName};var ${factoryVarName}=function(){if(typeof ${extendsVar}==='undefined'){throw new Error('Cannot access ${extendsVar}: not initialized. Ensure react chunk (01-react) loads before vendor chunk.');}return class ${className} extends ${extendsVar} {`;
             newLines.push(iifeStart);
+            // Store these for later use
+            (newLines as any).__storedVarName = storedVarName;
+            (newLines as any).__storedExtendsVar = storedExtendsVar;
+            (newLines as any).__storedClassName = storedClassName;
+            (newLines as any).__factoryVarName = factoryVarName;
             continue;
           }
           
@@ -303,15 +312,22 @@ const setupBufferGlobals = () => {
             newLines.push(line);
             
             if (braceDepth === 0) {
-              // Class ended, close the IIFE
+              // Class ended, close the factory function and assign to variable
               const lastLine = newLines[newLines.length - 1];
+              const storedVarName = (newLines as any).__storedVarName;
+              const factoryVarName = (newLines as any).__factoryVarName;
               if (lastLine.trim().endsWith('}')) {
-                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, '};})();');
+                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, `};};try{${storedVarName}=${factoryVarName}();}catch(e){setTimeout(function(){try{${storedVarName}=${factoryVarName}();}catch(e2){console.error('Failed to create ${storedVarName}:',e2);}},0);}`);
               } else {
-                newLines.push('})();');
+                newLines.push(`};try{${storedVarName}=${factoryVarName}();}catch(e){setTimeout(function(){try{${storedVarName}=${factoryVarName}();}catch(e2){console.error('Failed to create ${storedVarName}:',e2);}},0);}`);
               }
               inIIFE = false;
               braceDepth = 0;
+              // Clean up stored values
+              delete (newLines as any).__storedVarName;
+              delete (newLines as any).__storedExtendsVar;
+              delete (newLines as any).__storedClassName;
+              delete (newLines as any).__factoryVarName;
             }
             continue;
           }
