@@ -205,11 +205,38 @@ const setupBufferGlobals = () => {
         ];
         
         for (const errorClass of errorClasses) {
-          // Fix in object literals - make sure we don't match ErrorName$N
+          // Fix in object literals with key: value syntax - make sure we don't match ErrorName$N
+          // Don't match in import statements (they have 'as' or 'from')
           fixedCode = fixedCode.replace(
             new RegExp(`(\\w+):\\s*${errorClass}(?!\\$)(,|\\s*})`, 'g'),
-            (match, key, suffix) => {
+            (match, key, suffix, offset, str) => {
+              // Check if this is inside an import statement
+              const beforeMatch = str.substring(Math.max(0, offset - 100), offset);
+              if (beforeMatch.includes('import ') && (beforeMatch.includes(' as ') || beforeMatch.includes(' from '))) {
+                return match; // Don't replace in import statements
+              }
               return `${key}: ${createLazyGetterStr(errorClass)}${suffix}`;
+            }
+          );
+          
+          // Fix shorthand property syntax: InvalidHexBooleanError, (key and value are the same)
+          // Only match in object literals, not in import statements
+          // Pattern: must be after a comma or opening brace, and not after " as "
+          fixedCode = fixedCode.replace(
+            new RegExp(`([,{}\\s])${errorClass}(?!\\$)(,|\\s*})`, 'g'),
+            (match, prefix, suffix, offset, str) => {
+              // Check if this is inside an import statement - look for " as " before the match
+              const beforeMatch = str.substring(Math.max(0, offset - 200), offset + match.length);
+              // If we see " as " followed by the error class, it's an import - don't replace
+              if (beforeMatch.includes(' as ') && beforeMatch.indexOf(' as ') < beforeMatch.indexOf(errorClass)) {
+                return match; // Don't replace in import statements
+              }
+              // Also check if we're in an import statement by looking for "import" and "from"
+              if (beforeMatch.includes('import ') && beforeMatch.includes(' from ')) {
+                return match; // Don't replace in import statements
+              }
+              // Convert shorthand to explicit key: value with lazy getter
+              return `${prefix}${errorClass}: ${createLazyGetterStr(errorClass)}${suffix}`;
             }
           );
           
