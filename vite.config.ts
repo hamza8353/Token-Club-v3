@@ -51,7 +51,7 @@ const setupBufferGlobals = () => {
     name: 'setup-buffer-globals',
     generateBundle(options, bundle) {
       // Find all Solana-related chunks and inject Buffer setup code AFTER imports
-      const solanaChunkNames = ['solana-core', 'solana-spl', 'solana'];
+      const solanaChunkNames = ['solana-core', 'solana-spl'];
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
         if (chunk.type === 'chunk' && solanaChunkNames.includes(chunk.name || '')) {
@@ -196,7 +196,8 @@ export default defineConfig({
         // Hoist transitive imports to prevent circular dependency issues
         hoistTransitiveImports: true,
         // Use external live bindings to handle circular dependencies properly
-        externalLiveBindings: false,
+        // This allows circular dependencies to work by using live bindings
+        externalLiveBindings: true,
         // Experimental: Set minimum chunk size to encourage more splitting
         experimentalMinChunkSize: 20000, // 20KB minimum to prevent huge chunks
         manualChunks: (id) => {
@@ -211,10 +212,8 @@ export default defineConfig({
             if (id.includes('@solana/spl-token')) {
               return 'solana-spl';
             }
-            // Other Solana packages
-            if (id.includes('@solana/')) {
-              return 'solana';
-            }
+            // No other @solana/ packages are used, so don't create a separate chunk
+            // This prevents circular dependency issues
             // BN.js - bundle with solana-core (web3.js needs it)
             if (id.includes('bn.js')) {
               return 'solana-core'; // Bundle BN with solana-core
