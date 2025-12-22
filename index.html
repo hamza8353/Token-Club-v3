@@ -77,6 +77,20 @@
           root.style.fontFamily = 'sans-serif';
           root.style.padding = '16px';
         }
+        // Try to load the main module explicitly; log success/failure
+        try {
+          const mainScript = document.querySelector('script[type="module"][src*="index-"]') || document.querySelector('script[type="module"][src*="main"]');
+          if (mainScript && mainScript.src) {
+            console.log('[inline] forcing import', mainScript.src);
+            import(mainScript.src)
+              .then(() => console.log('[inline] forced main import ok'))
+              .catch((err) => console.error('[inline] forced main import failed', err));
+          } else {
+            console.error('[inline] main module src not found (force import)');
+          }
+        } catch (err) {
+          console.error('[inline] force import threw', err);
+        }
       })();
     </script>
     <script>
