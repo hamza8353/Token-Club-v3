@@ -504,12 +504,12 @@ const setupBufferGlobals = () => {
                 nextLineCompletes = true;
               }
             }
-            // CRITICAL: If current line ends with ] and next line(s) complete the statement, don't close yet
+            // CRITICAL: If current line ends with ], ALWAYS delay closing until we see statement completion
             // This prevents closing wrapper in the middle of multi-line statements like new Map([...]);
             if (currentLineEndsWithBracket) {
               // Check if any of the next few lines will complete the statement
               let willCompleteSoon = false;
-              for (let j = 1; j <= 3 && i + j < lines.length; j++) {
+              for (let j = 1; j <= 5 && i + j < lines.length; j++) {
                 const checkLine = lines[i + j].trim();
                 // Check for statement completion patterns - be very permissive
                 if (checkLine.includes('];') || checkLine.includes('});') || 
@@ -519,17 +519,20 @@ const setupBufferGlobals = () => {
                   willCompleteSoon = true;
                   break;
                 }
-                // Stop if we hit something that's clearly not part of the statement
-                // But allow template strings, array elements, etc.
-                if (checkLine && !checkLine.startsWith(']') && !checkLine.startsWith('}') && 
+                // Stop if we hit something that's clearly a new statement (not part of array/object)
+                // But allow template strings, array elements, comments, etc.
+                if (checkLine && 
+                    !checkLine.startsWith(']') && !checkLine.startsWith('}') && 
                     !checkLine.startsWith('//') && !checkLine.startsWith('/*') && 
                     !checkLine.startsWith('*') && !checkLine.startsWith('tt`') && 
                     !checkLine.startsWith('[') && !checkLine.match(/^\s*["'`]/) && 
-                    checkLine !== '' && !checkLine.match(/^\s*\d/)) {
+                    checkLine !== '' && !checkLine.match(/^\s*\d/) &&
+                    !checkLine.match(/^\s*[a-zA-Z_$]/)) {
                   // This looks like a new statement, stop looking
                   break;
                 }
               }
+              // If we found completion coming soon OR if next line completes, don't close yet
               if (willCompleteSoon || nextLineCompletes) {
                 // Don't close wrapper yet - wait for statement completion line to be processed
                 continue; // Skip rest of loop iteration, don't process closing logic
