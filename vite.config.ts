@@ -749,13 +749,20 @@ const setupBufferGlobals = () => {
           
           // CRITICAL: Ensure export is on a completely clean line, separated from any code
           // Always add a semicolon before export to ensure it's not part of any expression
-          const lastLineBeforeExport = cleanedBefore.split('\n').pop() || '';
-          const lastLineTrimmed = lastLineBeforeExport.trim();
+          // Find the last non-empty line before export
+          const linesBeforeExport = cleanedBefore.split('\n');
+          let lastNonEmptyLine = '';
+          for (let i = linesBeforeExport.length - 1; i >= 0; i--) {
+            const line = linesBeforeExport[i].trim();
+            if (line && !line.startsWith('//') && !line.startsWith('/*')) {
+              lastNonEmptyLine = line;
+              break;
+            }
+          }
           
-          // Always add semicolon before export to ensure it's at module level
-          // This prevents the parser from treating it as part of an expression
-          const needsSemicolon = lastLineTrimmed && 
-                                 !lastLineTrimmed.endsWith(';');
+          // Always add semicolon before export if last non-empty line doesn't end with semicolon
+          // This ensures the export is at module level and not part of any expression
+          const needsSemicolon = lastNonEmptyLine && !lastNonEmptyLine.endsWith(';');
           
           // Ensure export is properly separated with blank lines
           const separator = needsSemicolon ? ';\n\n' : '\n\n';
