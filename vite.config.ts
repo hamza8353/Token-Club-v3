@@ -33,11 +33,29 @@ const fixBrokenStrings = () => {
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
         if (chunk.type === 'chunk' && fileName.includes('vendor')) {
-          // Fix broken string: request.url.indexOf("file: (unclosed)
-          // This comes from a dependency (likely axios/fetch polyfill)
-          if (chunk.code.includes('.indexOf("file:') && !chunk.code.includes('.indexOf("file://"')) {
-            chunk.code = chunk.code.replace(/\.indexOf\("file:/g, '.indexOf("file://") === 0) {');
-          }
+          let code = chunk.code;
+          
+          // Fix broken string: .indexOf("file: (unclosed string)
+          // This comes from a dependency and gets broken during bundling
+          // Pattern: .indexOf("file: followed by newline (string is broken)
+          // Replace with: .indexOf("file://") === 0) {
+          
+          // Method 1: Replace pattern that ends with newline
+          code = code.replace(/\.indexOf\("file:\s*\n/g, '.indexOf("file://") === 0) {\n');
+          
+          // Method 2: Replace pattern followed by options.status (common case)
+          code = code.replace(/\.indexOf\("file:\s*\n\s+options\.status/g, '.indexOf("file://") === 0) {\n          options.status');
+          
+          // Method 3: Replace if statement pattern
+          code = code.replace(/if\s*\([^)]*\.indexOf\("file:/g, (match) => {
+            return match.replace(/\.indexOf\("file:/, '.indexOf("file://") === 0) {');
+          });
+          
+          // Method 4: Direct replacement of unclosed pattern
+          // Look for .indexOf("file: not followed by // or closing quote
+          code = code.replace(/\.indexOf\("file:(?!\/\/)(?!"\))/g, '.indexOf("file://") === 0) {');
+          
+          chunk.code = code;
         }
       }
     },
