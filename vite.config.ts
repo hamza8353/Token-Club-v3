@@ -487,7 +487,23 @@ const setupBufferGlobals = () => {
             const lineTrimmed = line.trim();
             // Don't close if current line ends with ] and next line completes with ];
             const currentLineEndsWithBracket = (lineTrimmed.endsWith(']') && !lineTrimmed.endsWith('];')) || (lineTrimmed.endsWith('})') && !lineTrimmed.endsWith('});'));
-            const nextLineCompletes = i + 1 < lines.length && (lines[i + 1].trim() === '];' || lines[i + 1].trim() === ']);' || lines[i + 1].trim().startsWith('];') || lines[i + 1].trim() === '});' || lines[i + 1].trim() === '});' || lines[i + 1].trim().startsWith('});'));
+            // Check if next line (or lines) complete the statement
+            let nextLineCompletes = false;
+            if (i + 1 < lines.length) {
+              const nextLineTrimmed = lines[i + 1].trim();
+              // Check for exact matches or patterns that complete the statement
+              nextLineCompletes = nextLineTrimmed === '];' || nextLineTrimmed === ']);' || 
+                                  nextLineTrimmed.startsWith('];') || nextLineTrimmed.startsWith('});') ||
+                                  nextLineTrimmed.endsWith('];') || nextLineTrimmed.endsWith('});');
+            }
+            // Also check if statement completion is within next 2 lines
+            if (!nextLineCompletes && i + 2 < lines.length) {
+              const nextNextLineTrimmed = lines[i + 2].trim();
+              if (nextNextLineTrimmed === '];' || nextNextLineTrimmed === ']);' || 
+                  nextNextLineTrimmed.startsWith('];') || nextNextLineTrimmed.startsWith('});')) {
+                nextLineCompletes = true;
+              }
+            }
             if (currentLineEndsWithBracket && nextLineCompletes) {
               continue; // Don't close yet, wait for next line
             }
