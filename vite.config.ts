@@ -672,10 +672,33 @@ const setupBufferGlobals = () => {
             else if (char === '}') braceDepth--;
           }
           
-          // If we're inside a scope (negative depth), add closing parentheses/braces before export
+          // If we have unbalanced parentheses/braces, fix them before export
+          // Negative depth means extra closings (syntax error) - remove trailing closings
+          // Positive depth means unclosed openings - add closings
           if (parenDepth < 0 || braceDepth < 0) {
-            const fix = ')'.repeat(-parenDepth) + '}'.repeat(-braceDepth);
-            const fixedCode = finalCode.substring(0, exportIndex) + fix + '\n' + finalCode.substring(exportIndex);
+            // We have extra closings - remove trailing closing parens/braces before export
+            const beforeExportText = finalCode.substring(0, exportIndex);
+            // Remove trailing closing parens/braces that are causing the imbalance
+            let cleanedBefore = beforeExportText;
+            let removedParens = 0;
+            let removedBraces = 0;
+            // Remove trailing closing parentheses
+            while (removedParens < -parenDepth && cleanedBefore.endsWith(')')) {
+              cleanedBefore = cleanedBefore.replace(/\s*\)\s*$/, '');
+              removedParens++;
+            }
+            // Remove trailing closing braces
+            while (removedBraces < -braceDepth && cleanedBefore.endsWith('}')) {
+              cleanedBefore = cleanedBefore.replace(/\s*\}\s*$/, '');
+              removedBraces++;
+            }
+            // Ensure export is on a clean line
+            const fixedCode = cleanedBefore.trim() + '\n\n' + finalCode.substring(exportIndex);
+            return fixedCode;
+          } else if (parenDepth > 0 || braceDepth > 0) {
+            // We have unclosed openings - add closing parentheses/braces
+            const fix = ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
+            const fixedCode = finalCode.substring(0, exportIndex) + fix + '\n\n' + finalCode.substring(exportIndex);
             return fixedCode;
           }
         }
