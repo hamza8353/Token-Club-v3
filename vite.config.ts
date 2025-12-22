@@ -638,7 +638,9 @@ const setupBufferGlobals = () => {
             }
           }
           const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !stillHasIncompleteBracket && !previousLineEndedWithBracket && !insideTemplateString;
-          if (waitingForVar && waitingVarLines > 0 && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
+          // Only close wrapper if we actually have an open wrapper (check for opening pattern in recent lines)
+          const hasOpenWrapper = (newLines as any).__waitingVarStart !== undefined;
+          if (waitingForVar && waitingVarLines > 0 && hasOpenWrapper && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
             newLines.push(`})();`);
             delete (newLines as any).__waitingForVar;
             delete (newLines as any).__waitingVarStart;
