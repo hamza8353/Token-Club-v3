@@ -734,18 +734,11 @@ const setupBufferGlobals = () => {
           // The semicolon acts as a statement terminator, ensuring the export is a new statement
           
           // CRITICAL: Ensure export is properly separated and ALWAYS valid
-          // Check if we're inside an object literal (braceDepth > 0) and close it
-          // Then add semicolon and blank lines to ensure complete isolation
-          let finalBeforeWithClosings = finalBefore;
-          if (braceDepth > 0) {
-            // We're inside an object literal - close it before export
-            finalBeforeWithClosings += '}'.repeat(braceDepth);
-          }
-          
-          // Add semicolon and blank lines to ensure export is at module level
-          // The semicolon breaks any expression, and blank lines provide visual separation
+          // Don't add closing braces - the depth calculation is unreliable
+          // Just ensure the export is properly separated with semicolon and blank lines
+          // The semicolon will break any expression, making the export a new statement
           const separator = ';\n\n';
-          const fixedCode = finalBeforeWithClosings + separator + exportText;
+          const fixedCode = finalBefore + separator + exportText;
           return fixedCode;
         }
         
