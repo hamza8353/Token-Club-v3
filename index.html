@@ -168,6 +168,18 @@
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      // Secondary loader to ensure main bundle imports and log any failure
+      const mainScript = document.querySelector('script[type="module"][src*="main"]') || document.querySelector('script[type="module"][src*="index-"]');
+      console.log('[inline] main loader start', mainScript && mainScript.src);
+      if (mainScript && mainScript.src) {
+        import(mainScript.src)
+          .then(() => console.log('[inline] main module imported'))
+          .catch((err) => console.error('[inline] main import failed', err));
+      } else {
+        console.error('[inline] main module src not found');
+      }
+    </script>
   </body>
 </html>
 
