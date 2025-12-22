@@ -505,29 +505,33 @@ const setupBufferGlobals = () => {
               }
             }
             // CRITICAL: If current line ends with ] and next line(s) complete the statement, don't close yet
+            // This prevents closing wrapper in the middle of multi-line statements like new Map([...]);
             if (currentLineEndsWithBracket) {
               // Check if any of the next few lines will complete the statement
               let willCompleteSoon = false;
               for (let j = 1; j <= 3 && i + j < lines.length; j++) {
                 const checkLine = lines[i + j].trim();
-                // Check for statement completion patterns
-                if (checkLine === '];' || checkLine === ']);' || 
+                // Check for statement completion patterns - be very permissive
+                if (checkLine.includes('];') || checkLine.includes('});') || 
+                    checkLine === '];' || checkLine === ']);' || 
                     checkLine.startsWith('];') || checkLine.startsWith('});') ||
                     checkLine.endsWith('];') || checkLine.endsWith('});')) {
                   willCompleteSoon = true;
                   break;
                 }
-                // Stop if we hit something that's not part of the statement
+                // Stop if we hit something that's clearly not part of the statement
+                // But allow template strings, array elements, etc.
                 if (checkLine && !checkLine.startsWith(']') && !checkLine.startsWith('}') && 
                     !checkLine.startsWith('//') && !checkLine.startsWith('/*') && 
                     !checkLine.startsWith('*') && !checkLine.startsWith('tt`') && 
-                    !checkLine.startsWith('[') && checkLine !== '') {
+                    !checkLine.startsWith('[') && !checkLine.match(/^\s*["'`]/) && 
+                    checkLine !== '' && !checkLine.match(/^\s*\d/)) {
+                  // This looks like a new statement, stop looking
                   break;
                 }
               }
               if (willCompleteSoon || nextLineCompletes) {
                 // Don't close wrapper yet - wait for statement completion line to be processed
-                // This prevents closing in the middle of multi-line statements like new Map([...]);
                 continue; // Skip rest of loop iteration, don't process closing logic
               }
             }
