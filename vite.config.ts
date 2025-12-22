@@ -673,36 +673,38 @@ const setupBufferGlobals = () => {
           }
           
           // If we have unbalanced parentheses/braces, fix them before export
-          // Negative depth means extra closings (syntax error) - remove trailing closings
-          // Positive depth means unclosed openings - add closings
-          if (parenDepth < 0 || braceDepth < 0) {
-            // We have extra closings - remove trailing closing parens/braces before export
+          // The export statement must be at module level, so ensure it's properly separated
+          if (parenDepth !== 0 || braceDepth !== 0) {
             const beforeExportText = finalCode.substring(0, exportIndex);
-            // Remove trailing closing parens/braces that are causing the imbalance
-            // Use regex to remove trailing closing parens/braces more aggressively
-            let cleanedBefore = beforeExportText;
-            const trailingClosings = cleanedBefore.match(/[\s\n]*[\)\}]+[\s\n]*$/);
-            if (trailingClosings) {
-              const trailingText = trailingClosings[0];
-              const parenCount = (trailingText.match(/\)/g) || []).length;
-              const braceCount = (trailingText.match(/\}/g) || []).length;
-              // Remove up to the number of extra closings we need to remove
-              const parensToRemove = Math.min(parenCount, -parenDepth);
-              const bracesToRemove = Math.min(braceCount, -braceDepth);
-              // Remove the trailing closings
-              cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
-              // If we still need to remove more, add them back but fewer
-              if (parensToRemove < -parenDepth || bracesToRemove < -braceDepth) {
-                // This shouldn't happen, but if it does, we'll just ensure export is clean
+            const exportText = finalCode.substring(exportIndex);
+            
+            // Remove any trailing whitespace and ensure clean separation
+            let cleanedBefore = beforeExportText.trimEnd();
+            
+            // If we have negative depth (extra closings), try to remove trailing closings
+            if (parenDepth < 0 || braceDepth < 0) {
+              // Remove trailing closing parens/braces up to the imbalance amount
+              const trailingMatch = cleanedBefore.match(/([\)\}]+)[\s\n]*$/);
+              if (trailingMatch) {
+                const trailing = trailingMatch[1];
+                const parenCount = (trailing.match(/\)/g) || []).length;
+                const braceCount = (trailing.match(/\}/g) || []).length;
+                // Remove all trailing closings and add back only what we need
+                cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
+                // Calculate how many we should keep (if any)
+                const keepParens = Math.max(0, parenCount + parenDepth);
+                const keepBraces = Math.max(0, braceCount + braceDepth);
+                if (keepParens > 0 || keepBraces > 0) {
+                  cleanedBefore += ')'.repeat(keepParens) + '}'.repeat(keepBraces);
+                }
               }
+            } else if (parenDepth > 0 || braceDepth > 0) {
+              // We have unclosed openings - add closing parentheses/braces
+              cleanedBefore += ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
             }
-            // Ensure export is on a clean line
-            const fixedCode = cleanedBefore.trim() + '\n\n' + finalCode.substring(exportIndex);
-            return fixedCode;
-          } else if (parenDepth > 0 || braceDepth > 0) {
-            // We have unclosed openings - add closing parentheses/braces
-            const fix = ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
-            const fixedCode = finalCode.substring(0, exportIndex) + fix + '\n\n' + finalCode.substring(exportIndex);
+            
+            // Ensure export is on a clean line with proper separation
+            const fixedCode = cleanedBefore + '\n\n' + exportText;
             return fixedCode;
           }
         }
