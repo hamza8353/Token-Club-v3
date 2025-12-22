@@ -382,7 +382,9 @@ const setupBufferGlobals = () => {
             // Check if we should close the waiting wrapper
             const waitingVarLines = (newLines as any).__waitingVarLines || 0;
             const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
-            if (waitingForVar && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
+            // Only close wrapper if we actually have an open wrapper
+            const hasOpenWrapper = (newLines as any).__waitingVarStart !== undefined;
+            if (waitingForVar && hasOpenWrapper && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
               if (waitingVarLines > 0) {
                 newLines.push(`})();`);
                 delete (newLines as any).__waitingForVar;
@@ -548,7 +550,9 @@ const setupBufferGlobals = () => {
             // Don't close if next line starts with export - export statements must be at top level
             const nextLineStartsWithExport = i + 1 < lines.length && lines[i + 1].trim().startsWith('export');
             const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !(currentLineEndsWithBracket && nextLineCompletes) && !stillHasIncompleteBracket && !nextLineStartsWithExport;
-            if (!nextLineUsesVar && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
+            // Only close wrapper if we actually have an open wrapper
+            const hasOpenWrapper = (newLines as any).__waitingVarStart !== undefined;
+            if (!nextLineUsesVar && hasOpenWrapper && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
               newLines.push(`})();`);
               delete (newLines as any).__waitingForVar;
               delete (newLines as any).__waitingVarStart;
