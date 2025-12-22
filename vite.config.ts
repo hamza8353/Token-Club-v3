@@ -424,7 +424,7 @@ const setupBufferGlobals = () => {
               let lookAhead = 0;
               let wrappedNext = false;
               let linesToWrap = 0;
-              while (lookAhead < 10 && i + lookAhead + 1 < lines.length) {
+              while (lookAhead < 15 && i + lookAhead + 1 < lines.length) {
                 const nextLine = lines[i + lookAhead + 1];
                 // Check if this line uses the variable
                 if (nextLine && new RegExp(`\\b${storedVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(nextLine)) {
@@ -440,7 +440,8 @@ const setupBufferGlobals = () => {
                   }
                 }
                 // Stop if we hit an empty line or comment (likely end of related code block)
-                if (nextLine && (nextLine.trim() === '' || nextLine.trim().startsWith('//') || nextLine.trim().startsWith('/*') || nextLine.trim().startsWith('*'))) {
+                // But only if we've found at least one line to wrap
+                if (nextLine && linesToWrap > 0 && (nextLine.trim() === '' || nextLine.trim().startsWith('//') || nextLine.trim().startsWith('/*') || nextLine.trim().startsWith('*'))) {
                   if (wrappedNext && linesToWrap > 0) {
                     // Close the wrapper before the empty line/comment
                     (newLines as any).__waitingVarCloseAfter = linesToWrap;
@@ -449,9 +450,9 @@ const setupBufferGlobals = () => {
                 }
                 lookAhead++;
               }
-              // If we found lines to wrap but didn't hit an empty line, close after 3-4 lines
+              // If we found lines to wrap but didn't hit an empty line, close after all wrapped lines
               if (wrappedNext && linesToWrap > 0 && !(newLines as any).__waitingVarCloseAfter) {
-                (newLines as any).__waitingVarCloseAfter = Math.min(linesToWrap, 4);
+                (newLines as any).__waitingVarCloseAfter = linesToWrap;
               }
               inIIFE = false;
               braceDepth = 0;
