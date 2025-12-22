@@ -721,25 +721,21 @@ const setupBufferGlobals = () => {
             }
           }
           
-          // CRITICAL: Always add semicolon before export to ensure it's at module level
-          // Even if the last line ends with ), }, or ], we need a semicolon to break any expression
-          // This prevents the parser from treating the export as part of an object literal or function call
-          const needsSemicolon = lastNonEmptyLine && !lastNonEmptyLine.endsWith(';');
-          
+          // CRITICAL: Always ensure export is at module level
           // Remove any trailing semicolons to avoid double semicolons
           let finalBefore = cleanedBefore.trimEnd();
           while (finalBefore.endsWith(';')) {
             finalBefore = finalBefore.slice(0, -1).trimEnd();
           }
           
-          // CRITICAL: If we have unbalanced parentheses/braces, ALWAYS add semicolon
-          // This ensures the export is not part of any expression, even if there are syntax errors earlier
-          const hasUnbalanced = parenDepth !== 0 || braceDepth !== 0;
-          const forceSemicolon = hasUnbalanced || needsSemicolon;
+          // CRITICAL: Always add semicolon before export to ensure it's at module level
+          // This prevents the parser from treating it as part of an expression
+          // Even if balanced, add semicolon to ensure proper statement termination
+          // The semicolon acts as a statement terminator, ensuring the export is a new statement
           
-          // Ensure export is properly separated with blank lines and semicolon
-          // Always add semicolon if unbalanced or if last line doesn't end with semicolon
-          const separator = forceSemicolon ? ';\n\n' : '\n\n';
+          // Ensure export is properly separated with blank lines and ALWAYS a semicolon
+          // This guarantees the export is at module level, regardless of previous code state
+          const separator = ';\n\n';
           const fixedCode = finalBefore + separator + exportText;
           return fixedCode;
         }
