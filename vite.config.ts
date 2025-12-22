@@ -501,13 +501,18 @@ const setupBufferGlobals = () => {
               // Check for closing brackets that might be followed by semicolon
               if (nextLineTrimmed === ']' || nextLineTrimmed === '})') {
                 foundClosingBracket = true;
-                // Check if next line has semicolon
+                // Check if next line has semicolon (completing the statement)
                 if (i + j + 1 < lines.length) {
                   const nextNextLineTrimmed = lines[i + j + 1].trim();
-                  if (nextNextLineTrimmed.startsWith(';') || nextNextLineTrimmed.startsWith('];') || nextNextLineTrimmed.startsWith('});')) {
+                  if (nextNextLineTrimmed === ';' || nextNextLineTrimmed.startsWith(';') || nextNextLineTrimmed === '];' || nextNextLineTrimmed.startsWith('];') || nextNextLineTrimmed === '});' || nextNextLineTrimmed.startsWith('});')) {
                     nextLinesCompleteStatement = true;
                     break;
                   }
+                }
+                // Also check if current line itself ends with ]; or });
+                if (nextLineTrimmed.endsWith('];') || nextLineTrimmed.endsWith('});')) {
+                  nextLinesCompleteStatement = true;
+                  break;
                 }
               }
               // Stop if we hit a line that uses the variable or starts a new statement (not part of array/object)
@@ -519,7 +524,10 @@ const setupBufferGlobals = () => {
               }
             }
             // A statement is complete if it ends with ; or if next lines complete it
-            const isCompleteStatement = lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*');
+            // But don't close if current line ends with ] and next line will complete it with ];
+            const currentLineEndsWithBracket = lineTrimmed.endsWith(']') || lineTrimmed.endsWith('})');
+            const nextLineCompletes = i + 1 < lines.length && (lines[i + 1].trim() === '];' || lines[i + 1].trim().startsWith('];') || lines[i + 1].trim() === '});' || lines[i + 1].trim().startsWith('});'));
+            const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !(currentLineEndsWithBracket && nextLineCompletes);
             if (!nextLineUsesVar && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
               newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
               delete (newLines as any).__waitingForVar;
