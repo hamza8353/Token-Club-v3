@@ -656,7 +656,7 @@ const setupBufferGlobals = () => {
         }
         
         // CRITICAL: Ensure export statement is at module level
-        // Check if we're inside a function scope before export and fix it
+        // The export statement must be at the top level, not inside any function/scope
         const finalCode = newLines.join('\n');
         const exportIndex = finalCode.lastIndexOf('export {');
         if (exportIndex > 0) {
@@ -672,56 +672,60 @@ const setupBufferGlobals = () => {
             else if (char === '}') braceDepth--;
           }
           
-          // If we have unbalanced parentheses/braces, fix them before export
-          // The export statement must be at module level, so ensure it's properly separated
-          if (parenDepth !== 0 || braceDepth !== 0) {
-            const beforeExportText = finalCode.substring(0, exportIndex);
-            const exportText = finalCode.substring(exportIndex);
-            
-            // Remove any trailing whitespace and ensure clean separation
-            let cleanedBefore = beforeExportText.trimEnd();
-            
-            // If we have negative depth (extra closings), try to remove trailing closings
-            if (parenDepth < 0 || braceDepth < 0) {
-              // Remove trailing closing parens/braces up to the imbalance amount
-              const trailingMatch = cleanedBefore.match(/([\)\}]+)[\s\n]*$/);
-              if (trailingMatch) {
-                const trailing = trailingMatch[1];
-                const parenCount = (trailing.match(/\)/g) || []).length;
-                const braceCount = (trailing.match(/\}/g) || []).length;
-                // Remove all trailing closings and add back only what we need
-                cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
-                // Calculate how many we should keep (if any)
-                const keepParens = Math.max(0, parenCount + parenDepth);
-                const keepBraces = Math.max(0, braceCount + braceDepth);
-                if (keepParens > 0 || keepBraces > 0) {
-                  cleanedBefore += ')'.repeat(keepParens) + '}'.repeat(keepBraces);
-                }
+          const exportText = finalCode.substring(exportIndex);
+          let cleanedBefore = beforeExport.trimEnd();
+          
+          // CRITICAL FIX: If we have negative depth (extra closings), we need to ensure
+          // the export is at module level by closing any open scopes properly
+          // Since negative depth means extra closings, we can't add more closings
+          // Instead, we need to ensure the export statement itself is valid
+          // The best approach is to ensure the export is on a completely clean line
+          // and not part of any expression or function call
+          
+          // Remove any trailing closing parens/braces that might be causing issues
+          // But be careful - we don't want to remove valid closings
+          if (parenDepth < 0 || braceDepth < 0) {
+            // We have extra closings - try to find and remove them
+            // Look for trailing closings and remove excess
+            const trailingMatch = cleanedBefore.match(/([\)\}]+)[\s\n]*$/);
+            if (trailingMatch) {
+              const trailing = trailingMatch[1];
+              const parenCount = (trailing.match(/\)/g) || []).length;
+              const braceCount = (trailing.match(/\}/g) || []).length;
+              
+              // Calculate how many to remove
+              const parensToRemove = Math.min(parenCount, -parenDepth);
+              const bracesToRemove = Math.min(braceCount, -braceDepth);
+              
+              // Remove all trailing closings
+              cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
+              
+              // Add back only what we need (if any)
+              const keepParens = Math.max(0, parenCount - parensToRemove);
+              const keepBraces = Math.max(0, braceCount - bracesToRemove);
+              if (keepParens > 0 || keepBraces > 0) {
+                cleanedBefore += ')'.repeat(keepParens) + '}'.repeat(keepBraces);
               }
-            } else if (parenDepth > 0 || braceDepth > 0) {
-              // We have unclosed openings - add closing parentheses/braces
-              cleanedBefore += ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
             }
-            
-            // Ensure export is on a clean line with proper separation
-            // Add semicolon if the line before export doesn't end with one
-            const lastLineBeforeExport = cleanedBefore.split('\n').pop() || '';
-            const needsSemicolon = !lastLineBeforeExport.trim().endsWith(';') && 
-                                   !lastLineBeforeExport.trim().endsWith('}') && 
-                                   !lastLineBeforeExport.trim().endsWith(')') &&
-                                   lastLineBeforeExport.trim() !== '';
-            const separator = needsSemicolon ? ';\n\n' : '\n\n';
-            const fixedCode = cleanedBefore + separator + exportText;
-            return fixedCode;
+          } else if (parenDepth > 0 || braceDepth > 0) {
+            // We have unclosed openings - add closing parentheses/braces
+            cleanedBefore += ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
           }
           
-          // Even if balanced, ensure export is properly separated
-          const beforeExportText = finalCode.substring(0, exportIndex);
-          const lastLine = beforeExportText.split('\n').pop() || '';
-          if (lastLine.trim() && !lastLine.trim().endsWith(';') && !lastLine.trim().endsWith('}') && !lastLine.trim().endsWith(')')) {
-            const fixedCode = beforeExportText + ';\n\n' + finalCode.substring(exportIndex);
-            return fixedCode;
-          }
+          // CRITICAL: Ensure export is on a completely clean line, separated from any code
+          // Add a semicolon if the last line doesn't end with proper punctuation
+          const lastLineBeforeExport = cleanedBefore.split('\n').pop() || '';
+          const lastLineTrimmed = lastLineBeforeExport.trim();
+          const needsSemicolon = lastLineTrimmed && 
+                                 !lastLineTrimmed.endsWith(';') && 
+                                 !lastLineTrimmed.endsWith('}') && 
+                                 !lastLineTrimmed.endsWith(')') &&
+                                 !lastLineTrimmed.endsWith(']');
+          
+          // Ensure export is properly separated with blank lines
+          const separator = needsSemicolon ? ';\n\n' : '\n\n';
+          const fixedCode = cleanedBefore + separator + exportText;
+          return fixedCode;
         }
         
         return finalCode;
