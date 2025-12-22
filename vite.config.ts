@@ -487,7 +487,7 @@ const setupBufferGlobals = () => {
             const lineTrimmed = line.trim();
             // Don't close if current line ends with ] and next line completes with ];
             const currentLineEndsWithBracket = (lineTrimmed.endsWith(']') && !lineTrimmed.endsWith('];')) || (lineTrimmed.endsWith('})') && !lineTrimmed.endsWith('});'));
-            const nextLineCompletes = i + 1 < lines.length && (lines[i + 1].trim() === '];' || lines[i + 1].trim().startsWith('];') || lines[i + 1].trim() === '});' || lines[i + 1].trim().startsWith('});'));
+            const nextLineCompletes = i + 1 < lines.length && (lines[i + 1].trim() === '];' || lines[i + 1].trim() === ']);' || lines[i + 1].trim().startsWith('];') || lines[i + 1].trim() === '});' || lines[i + 1].trim() === '});' || lines[i + 1].trim().startsWith('});'));
             if (currentLineEndsWithBracket && nextLineCompletes) {
               continue; // Don't close yet, wait for next line
             }
