@@ -760,12 +760,19 @@ const setupBufferGlobals = () => {
             }
           }
           
-          // Always add semicolon before export if last non-empty line doesn't end with semicolon
-          // This ensures the export is at module level and not part of any expression
+          // CRITICAL: Always add semicolon before export to ensure it's at module level
+          // Even if the last line ends with ), }, or ], we need a semicolon to break any expression
+          // This prevents the parser from treating the export as part of an object literal or function call
           const needsSemicolon = lastNonEmptyLine && !lastNonEmptyLine.endsWith(';');
           
+          // If we have any unbalanced parentheses or braces, ALWAYS add semicolon
+          // This ensures the export is not part of any expression
+          const hasUnbalanced = finalParenDepth !== 0 || finalBraceDepth !== 0;
+          const forceSemicolon = hasUnbalanced || needsSemicolon;
+          
           // Ensure export is properly separated with blank lines
-          const separator = needsSemicolon ? ';\n\n' : '\n\n';
+          // Always add semicolon if unbalanced or if last line doesn't end with semicolon
+          const separator = forceSemicolon ? ';\n\n' : '\n\n';
           const fixedCode = cleanedBefore + separator + exportText;
           return fixedCode;
         }
