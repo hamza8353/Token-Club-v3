@@ -525,7 +525,7 @@ const setupBufferGlobals = () => {
             }
             // A statement is complete if it ends with ; or if next lines complete it
             // But don't close if current line ends with ] and next line will complete it with ];
-            const currentLineEndsWithBracket = lineTrimmed.endsWith(']') || lineTrimmed.endsWith('})');
+            const currentLineEndsWithBracket = (lineTrimmed.endsWith(']') && !lineTrimmed.endsWith('];')) || (lineTrimmed.endsWith('})') && !lineTrimmed.endsWith('});'));
             const nextLineCompletes = i + 1 < lines.length && (lines[i + 1].trim() === '];' || lines[i + 1].trim().startsWith('];') || lines[i + 1].trim() === '});' || lines[i + 1].trim().startsWith('});'));
             const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !(currentLineEndsWithBracket && nextLineCompletes);
             if (!nextLineUsesVar && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
