@@ -61,14 +61,39 @@ const ensureMetaplexInit = () => {
       // The "codes" error suggests something is trying to set a property on undefined
       // This often happens when error objects or status code mappings aren't initialized
       if (chunk.name === 'metaplex' || chunk.name === 'vendor') {
-        // Add initialization code at the beginning to ensure globals and error objects exist
+        // Add comprehensive initialization code at the beginning
         const initCode = `(function(){
-          if(typeof globalThis==='undefined'){var globalThis=window||global||self||{};}
-          if(typeof global==='undefined'){var global=globalThis;}
-          if(typeof process==='undefined'){var process={env:{},browser:true};}
-          if(typeof Buffer==='undefined'&&typeof globalThis.Buffer!=='undefined'){var Buffer=globalThis.Buffer;}
-          // Ensure Error objects have proper structure
-          if(typeof Error!=='undefined'&&!Error.codes){try{Error.codes={};}catch(e){}}
+          // Ensure globalThis exists
+          if(typeof globalThis==='undefined'){
+            var globalThis=window||global||self||{};
+          }
+          // Ensure global exists
+          if(typeof global==='undefined'){
+            var global=globalThis;
+          }
+          // Ensure process exists
+          if(typeof process==='undefined'){
+            var process={env:{},browser:true,version:'',versions:{}};
+          }
+          // Ensure Buffer exists
+          if(typeof Buffer==='undefined'&&typeof globalThis.Buffer!=='undefined'){
+            var Buffer=globalThis.Buffer;
+          }
+          // Fix for "codes" property - ensure common error/status objects exist
+          // This is often needed by HTTP libraries or error handling code
+          try{
+            if(typeof Error!=='undefined'){
+              if(!Error.codes){Error.codes={};}
+            }
+            // Some libraries use a separate codes object
+            if(typeof globalThis!=='undefined'&&!globalThis.codes){
+              globalThis.codes={};
+            }
+            // Ensure common HTTP status code objects exist
+            if(typeof globalThis!=='undefined'&&!globalThis.statusCodes){
+              globalThis.statusCodes={};
+            }
+          }catch(e){}
         })();\n`;
         return initCode + code;
       }
