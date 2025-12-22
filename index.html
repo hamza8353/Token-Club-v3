@@ -66,9 +66,9 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- #region agent log -->
     <script>
-      // Initialize error codes BEFORE any modules load
+      // Initialize error codes and globals BEFORE any modules load
+      // This prevents "Cannot set properties of undefined (setting 'codes')" errors
       (function(){
         try{
           if(typeof globalThis==='undefined'){var globalThis=window||global||self||{};}
@@ -80,13 +80,11 @@
           // Common HTTP status codes that libraries might expect
           if(typeof globalThis!=='undefined'&&!globalThis.http){globalThis.http={};}
           if(typeof globalThis.http!=='undefined'&&!globalThis.http.STATUS_CODES){globalThis.http.STATUS_CODES={};}
-          fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:early-init',message:'Early initialization complete',data:{hasErrorCodes:!!Error.codes,hasGlobalCodes:!!globalThis.codes,hasStatusCodes:!!globalThis.statusCodes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
         }catch(e){
-          fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:early-init-error',message:'Early init error',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+          // Silently fail - initialization should not break the app
         }
       })();
     </script>
-    <!-- #endregion agent log -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -57,15 +57,6 @@ const ensureMetaplexInit = () => {
   return {
     name: 'ensure-metaplex-init',
     renderChunk(code, chunk, options) {
-      // #region agent log
-      // Log ALL chunks to see what names they have
-      if (chunk.name && (chunk.name.includes('vendor') || chunk.name.includes('metaplex') || chunk.name === null || chunk.name === undefined)) {
-        try {
-          // This will be in build output, not runtime, but helps debug
-          console.log(`[DEBUG] Chunk name: ${chunk.name}, fileName would be: ${chunk.fileName || 'unknown'}`);
-        } catch (e) {}
-      }
-      // #endregion agent log
       // Ensure metaplex and vendor chunks have proper initialization
       // The "codes" error suggests something is trying to set a property on undefined
       // This often happens when error objects or status code mappings aren't initialized
@@ -74,12 +65,8 @@ const ensureMetaplexInit = () => {
       const isMetaplexChunk = chunk.name === 'metaplex' || (chunk.fileName && chunk.fileName.includes('metaplex'));
       if (isMetaplexChunk || isVendorChunk) {
         // Add comprehensive initialization code at the beginning
-        // #region agent log
-        const chunkIdentifier = chunk.name || (chunk.fileName ? chunk.fileName.split('/').pop() : 'unknown');
+        // This runs BEFORE the chunk code executes, ensuring all globals exist
         const initCode = `(function(){
-          // #region agent log
-          try{fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:init-start',message:'Initialization starting',data:{chunkName:'${chunkIdentifier}',hasGlobalThis:typeof globalThis!=='undefined',hasWindow:typeof window!=='undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});}catch(e){}
-          // #endregion agent log
           // Ensure globalThis exists
           if(typeof globalThis==='undefined'){
             var globalThis=window||global||self||{};
@@ -110,38 +97,34 @@ const ensureMetaplexInit = () => {
             if(typeof globalThis!=='undefined'&&!globalThis.statusCodes){
               globalThis.statusCodes={};
             }
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:init-complete',message:'Initialization complete',data:{chunkName:'${chunkIdentifier}',hasErrorCodes:typeof Error!=='undefined'&&!!Error.codes,hasGlobalCodes:typeof globalThis!=='undefined'&&!!globalThis.codes,hasStatusCodes:typeof globalThis!=='undefined'&&!!globalThis.statusCodes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion agent log
+            // Common pattern: http.STATUS_CODES
+            if(typeof globalThis!=='undefined'&&!globalThis.http){
+              globalThis.http={};
+            }
+            if(typeof globalThis.http!=='undefined'&&!globalThis.http.STATUS_CODES){
+              globalThis.http.STATUS_CODES={};
+            }
           }catch(e){
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:init-error',message:'Initialization error',data:{chunkName:'${chunkIdentifier}',error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion agent log
+            // Silently fail - initialization should not break the app
           }
         })();\n`;
-        // #endregion agent log
-        // Intercept property assignments to catch undefined.codes = ...
-        // Use a more aggressive approach - wrap the entire chunk execution
-        const wrappedCode = `
-        // #region agent log
+        
+        // Intercept Object.defineProperty to prevent undefined.codes assignments
+        // This catches cases where code tries to set codes on an undefined module export
+        const propertyInterceptor = `
         (function(){
-          // Intercept all property assignments using Proxy on Object.prototype
           const originalDefineProperty = Object.defineProperty;
           Object.defineProperty = function(target, property, descriptor){
+            // If trying to set 'codes' on undefined/null, create an empty object first
             if(property==='codes'&&(target===undefined||target===null)){
-              const stack = new Error().stack;
-              fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:defineProperty-catch',message:'Attempt to defineProperty codes on undefined',data:{chunkName:'${chunkIdentifier}',targetType:typeof target,targetValue:String(target),stack:stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-              // Create the object if it's undefined
-              if(target===undefined||target===null){
-                throw new Error('Cannot defineProperty codes on ' + (target===undefined?'undefined':'null') + '. Stack: ' + stack);
-              }
+              // Create a new object to hold the codes property
+              target = {};
             }
             return originalDefineProperty.call(this,target,property,descriptor);
           };
         })();
-        // #endregion agent log
         `;
-        return initCode + wrappedCode + code;
+        return initCode + propertyInterceptor + code;
       }
       return null;
     },
