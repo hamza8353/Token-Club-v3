@@ -378,20 +378,32 @@ const setupBufferGlobals = () => {
               const lastLine = newLines[newLines.length - 1];
               const storedVarName = (newLines as any).__storedVarName;
               const factoryVarName = (newLines as any).__factoryVarName;
-              // Use queueMicrotask to delay factory call until after current execution
-              // This ensures y$2 is available when the factory is called
-              // Also wrap subsequent code that uses the variable to wait for it
+              // Close factory function and assign variable immediately
+              // Use try-catch with setTimeout fallback to handle TDZ errors
               if (lastLine.trim().endsWith('}')) {
-                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, `};};function _init${storedVarName}(){try{if(!${storedVarName}){${storedVarName}=${factoryVarName}();}}catch(e){queueMicrotask(_init${storedVarName});}}_init${storedVarName}();`);
+                newLines[newLines.length - 1] = lastLine.replace(/\}\s*$/, `};};try{${storedVarName}=${factoryVarName}();}catch(e){setTimeout(function(){try{${storedVarName}=${factoryVarName}();}catch(e2){console.error('Failed to create ${storedVarName}:',e2);}},0);}`);
               } else {
-                newLines.push(`};function _init${storedVarName}(){try{if(!${storedVarName}){${storedVarName}=${factoryVarName}();}}catch(e){queueMicrotask(_init${storedVarName});}}_init${storedVarName}();`);
+                newLines.push(`};try{${storedVarName}=${factoryVarName}();}catch(e){setTimeout(function(){try{${storedVarName}=${factoryVarName}();}catch(e2){console.error('Failed to create ${storedVarName}:',e2);}},0);}`);
               }
               
-              // Wrap subsequent lines that use this variable in a function that waits
-              // We'll look ahead a few lines and wrap them
+              // Mark variable as initialized to prevent pending variable wrapper
+              const initializedVars = (newLines as any).__initializedVars || new Set();
+              initializedVars.add(storedVarName);
+              (newLines as any).__initializedVars = initializedVars;
+              
+              // Don't wrap subsequent lines - variable is initialized
+              // Remove any pending variable tracking for this variable
+              if ((newLines as any).__pendingVarName === storedVarName) {
+                delete (newLines as any).__pendingVarName;
+                delete (newLines as any).__pendingVarNameStart;
+                delete (newLines as any).__pendingVarNameLineCount;
+                delete (newLines as any).__pendingVarNameInWrapper;
+              }
+              
+              // Skip the look-ahead wrapping code since variable is initialized
               let lookAhead = 0;
               let wrappedNext = false;
-              while (lookAhead < 5 && i + lookAhead + 1 < lines.length) {
+              while (false && lookAhead < 5 && i + lookAhead + 1 < lines.length) {
                 const nextLine = lines[i + lookAhead + 1];
                 if (nextLine && new RegExp(`\\b${storedVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;])`).test(nextLine)) {
                   // Found a line that uses the variable - wrap it
