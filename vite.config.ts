@@ -485,6 +485,12 @@ const setupBufferGlobals = () => {
             // Close if we've wrapped all expected lines AND next line doesn't use the variable
             // Also check that the current line is a complete statement (ends with ;, }, ], or ))
             const lineTrimmed = line.trim();
+            // Don't close if current line ends with ] and next line completes with ];
+            const currentLineEndsWithBracket = (lineTrimmed.endsWith(']') && !lineTrimmed.endsWith('];')) || (lineTrimmed.endsWith('})') && !lineTrimmed.endsWith('});'));
+            const nextLineCompletes = i + 1 < lines.length && (lines[i + 1].trim() === '];' || lines[i + 1].trim().startsWith('];') || lines[i + 1].trim() === '});' || lines[i + 1].trim().startsWith('});'));
+            if (currentLineEndsWithBracket && nextLineCompletes) {
+              continue; // Don't close yet, wait for next line
+            }
             // Don't close if line ends with opening bracket/paren (incomplete statement)
             const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
             // Check if next few lines complete the statement (look ahead up to 5 lines)
@@ -525,8 +531,6 @@ const setupBufferGlobals = () => {
             }
             // A statement is complete if it ends with ; or if next lines complete it
             // But don't close if current line ends with ] and next line will complete it with ];
-            const currentLineEndsWithBracket = (lineTrimmed.endsWith(']') && !lineTrimmed.endsWith('];')) || (lineTrimmed.endsWith('})') && !lineTrimmed.endsWith('});'));
-            const nextLineCompletes = i + 1 < lines.length && (lines[i + 1].trim() === '];' || lines[i + 1].trim().startsWith('];') || lines[i + 1].trim() === '});' || lines[i + 1].trim().startsWith('});'));
             const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !(currentLineEndsWithBracket && nextLineCompletes);
             if (!nextLineUsesVar && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
               newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
