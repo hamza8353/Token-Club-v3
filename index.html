@@ -67,6 +67,19 @@
   <body>
     <div id="root"></div>
     <script>
+      // Inline boot marker to detect if JS runs before modules load
+      console.log('[inline] document booting');
+      (function() {
+        const root = document.getElementById('root');
+        if (root) {
+          root.textContent = 'Booting TokenClub...';
+          root.style.color = '#fff';
+          root.style.fontFamily = 'sans-serif';
+          root.style.padding = '16px';
+        }
+      })();
+    </script>
+    <script>
       // Initialize error codes and globals BEFORE any modules load
       // This prevents "Cannot set properties of undefined (setting 'codes')" errors
       (function(){
