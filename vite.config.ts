@@ -299,12 +299,17 @@ const setupBufferGlobals = () => {
             (newLines as any).__storedExtendsVar = storedExtendsVar;
             (newLines as any).__storedClassName = storedClassName;
             (newLines as any).__factoryVarName = factoryVarName;
+            // Mark this variable as initialized (not pending) so the pending variable wrapper doesn't interfere
+            (newLines as any).__initializedVars = (newLines as any).__initializedVars || new Set();
+            (newLines as any).__initializedVars.add(storedVarName);
             continue;
           }
           
           // Check if we need to wrap code that uses a pending variable
           const pendingVarName = (newLines as any).__pendingVarName;
-          if (pendingVarName && !inIIFE) {
+          const initializedVars = (newLines as any).__initializedVars || new Set();
+          // Skip pending variable wrapping if this variable is already initialized
+          if (pendingVarName && !inIIFE && !initializedVars.has(pendingVarName)) {
             const pendingStart = (newLines as any).__pendingVarNameStart || 0;
             const pendingLineCount = ((newLines as any).__pendingVarNameLineCount || 0) + 1;
             (newLines as any).__pendingVarNameLineCount = pendingLineCount;
