@@ -107,7 +107,32 @@ const ensureMetaplexInit = () => {
           }
         })();\n`;
         // #endregion agent log
-        return initCode + code;
+        // Add a Proxy to catch attempts to set 'codes' on undefined
+        const proxyCode = `
+        // #region agent log
+        (function(){
+          const originalSetProperty = Object.defineProperty;
+          Object.defineProperty = function(obj, prop, descriptor){
+            if(prop==='codes'&&(obj===undefined||obj===null)){
+              fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:proxy-catch',message:'Attempt to set codes on undefined',data:{chunkName:'${chunk.name}',objType:typeof obj,objValue:String(obj),stack:new Error().stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+              throw new Error('Cannot set codes on undefined/null');
+            }
+            return originalSetProperty.call(this,obj,prop,descriptor);
+          };
+          const originalSet = Object.prototype.__defineSetter__;
+          if(originalSet){
+            Object.prototype.__defineSetter__ = function(prop,func){
+              if(prop==='codes'&&(this===undefined||this===null)){
+                fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:proxy-catch-setter',message:'Attempt to set codes on undefined via setter',data:{chunkName:'${chunk.name}',objType:typeof this,objValue:String(this),stack:new Error().stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                throw new Error('Cannot set codes on undefined/null');
+              }
+              return originalSet.call(this,prop,func);
+            };
+          }
+        })();
+        // #endregion agent log
+        `;
+        return initCode + proxyCode + code;
       }
       return null;
     },
