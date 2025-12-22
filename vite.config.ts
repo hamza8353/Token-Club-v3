@@ -560,6 +560,15 @@ const setupBufferGlobals = () => {
           const waitingVarLines = (newLines as any).__waitingVarLines || 0;
           const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
           const lineTrimmed = line.trim();
+          // CRITICAL: Don't close if current line ends with ] - always wait for completion
+          const endsWithBracket = lineTrimmed.endsWith(']') || lineTrimmed.endsWith('})');
+          const endsWithCompleteBracket = lineTrimmed.endsWith('];') || lineTrimmed.endsWith('});');
+          const currentLineEndsWithBracket = endsWithBracket && !endsWithCompleteBracket;
+          // If line ends with ], skip closing logic - wait for completion line
+          if (currentLineEndsWithBracket) {
+            newLines.push(line);
+            continue; // Skip rest of loop iteration, don't process closing logic
+          }
           // Don't close if line ends with opening bracket/paren (incomplete statement)
           const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
           // Check if next few lines complete the statement (look ahead up to 5 lines)
