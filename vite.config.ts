@@ -56,6 +56,29 @@ const fixBrokenStrings = () => {
 const ensureMetaplexInit = () => {
   return {
     name: 'ensure-metaplex-init',
+    generateBundle(options, bundle) {
+      // Fix codes property errors in the final bundle
+      // This runs after all chunks are generated
+      for (const fileName in bundle) {
+        const chunk = bundle[fileName];
+        if (chunk.type === 'chunk' && (fileName.includes('vendor') || fileName.includes('metaplex'))) {
+          // Find and fix patterns like: variable.codes = value where variable might be undefined
+          // We'll wrap these in try-catch or ensure the variable exists
+          // This is a last-resort fix for direct property assignments
+          let code = chunk.code;
+          // Match patterns like: a.codes=... or a$1.codes=... (minified code)
+          // Replace with safe assignment: (a||{}).codes=...
+          code = code.replace(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\.\s*codes\s*=/g, (match, varName) => {
+            // Only replace if it's not already wrapped
+            if (!code.includes(`(${varName}||{}).codes=`)) {
+              return `(${varName}=${varName}||{}).codes=`;
+            }
+            return match;
+          });
+          chunk.code = code;
+        }
+      }
+    },
     renderChunk(code, chunk, options) {
       // Ensure metaplex and vendor chunks have proper initialization
       // The "codes" error suggests something is trying to set a property on undefined
@@ -109,8 +132,7 @@ const ensureMetaplexInit = () => {
           }
         })();\n`;
         
-        // Intercept both Object.defineProperty AND direct property assignments
-        // This catches cases where code tries to set codes on an undefined module export
+        // Intercept Object.defineProperty to prevent undefined.codes assignments
         const propertyInterceptor = `
         (function(){
           // Intercept Object.defineProperty
@@ -122,36 +144,6 @@ const ensureMetaplexInit = () => {
             }
             return originalDefineProperty.call(this,target,property,descriptor);
           };
-          
-          // Intercept direct property assignments using Proxy on Object.prototype
-          // This is more aggressive and catches obj.codes = ... patterns
-          const originalSet = Object.prototype.__defineSetter__;
-          if(originalSet){
-            Object.prototype.__defineSetter__ = function(prop, func){
-              if(prop==='codes'&&(this===undefined||this===null)){
-                // Create object if undefined
-                return originalSet.call({}, prop, func);
-              }
-              return originalSet.call(this, prop, func);
-            };
-          }
-          
-          // Wrap the chunk code to catch property assignment errors
-          // Use a try-catch wrapper around the entire chunk execution
-          const originalCode = arguments[0];
-          if(typeof originalCode === 'function'){
-            return function(){
-              try{
-                return originalCode.apply(this, arguments);
-              }catch(e){
-                if(e.message&&e.message.includes('codes')&&e.message.includes('undefined')){
-                  // Silently handle - the object will be created by our interceptor
-                  return;
-                }
-                throw e;
-              }
-            };
-          }
         })();
         `;
         
@@ -168,9 +160,7 @@ export default defineConfig({
     suppressSourcemapWarnings(),
     fixBrokenStrings(),
     ensureMetaplexInit(),
-    react({
-      fastRefresh: true,
-    }),
+    react(),
     nodePolyfills({
       include: ['assert', 'buffer', 'process', 'crypto'],
       globals: {
