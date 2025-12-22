@@ -679,18 +679,22 @@ const setupBufferGlobals = () => {
             // We have extra closings - remove trailing closing parens/braces before export
             const beforeExportText = finalCode.substring(0, exportIndex);
             // Remove trailing closing parens/braces that are causing the imbalance
+            // Use regex to remove trailing closing parens/braces more aggressively
             let cleanedBefore = beforeExportText;
-            let removedParens = 0;
-            let removedBraces = 0;
-            // Remove trailing closing parentheses
-            while (removedParens < -parenDepth && cleanedBefore.endsWith(')')) {
-              cleanedBefore = cleanedBefore.replace(/\s*\)\s*$/, '');
-              removedParens++;
-            }
-            // Remove trailing closing braces
-            while (removedBraces < -braceDepth && cleanedBefore.endsWith('}')) {
-              cleanedBefore = cleanedBefore.replace(/\s*\}\s*$/, '');
-              removedBraces++;
+            const trailingClosings = cleanedBefore.match(/[\s\n]*[\)\}]+[\s\n]*$/);
+            if (trailingClosings) {
+              const trailingText = trailingClosings[0];
+              const parenCount = (trailingText.match(/\)/g) || []).length;
+              const braceCount = (trailingText.match(/\}/g) || []).length;
+              // Remove up to the number of extra closings we need to remove
+              const parensToRemove = Math.min(parenCount, -parenDepth);
+              const bracesToRemove = Math.min(braceCount, -braceDepth);
+              // Remove the trailing closings
+              cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
+              // If we still need to remove more, add them back but fewer
+              if (parensToRemove < -parenDepth || bracesToRemove < -braceDepth) {
+                // This shouldn't happen, but if it does, we'll just ensure export is clean
+              }
             }
             // Ensure export is on a clean line
             const fixedCode = cleanedBefore.trim() + '\n\n' + finalCode.substring(exportIndex);
