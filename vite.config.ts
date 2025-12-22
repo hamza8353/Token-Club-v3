@@ -713,24 +713,24 @@ const setupBufferGlobals = () => {
           }
           
           // CRITICAL: Ensure export is on a completely clean line, separated from any code
-          // The export statement MUST be at module level, so ensure it's properly isolated
-          // If we have unbalanced parentheses, add a semicolon to ensure the previous statement is complete
+          // If we have unbalanced parentheses, the export might be parsed as part of an expression
+          // Always add a semicolon before export when parentheses are unbalanced to ensure it's at module level
           const lastLineBeforeExport = cleanedBefore.split('\n').pop() || '';
           const lastLineTrimmed = lastLineBeforeExport.trim();
           
-          // Always add a semicolon if the last line doesn't end with proper punctuation
-          // This ensures the export is not part of any expression
-          const needsSemicolon = lastLineTrimmed && 
-                                 !lastLineTrimmed.endsWith(';') && 
-                                 !lastLineTrimmed.endsWith('}') && 
-                                 !lastLineTrimmed.endsWith(')') &&
-                                 !lastLineTrimmed.endsWith(']');
-          
-          // If we have unbalanced parentheses, always add a semicolon to break any potential expression
-          const forceSemicolon = (parenDepth !== 0 || braceDepth !== 0) && !lastLineTrimmed.endsWith(';');
+          // If parentheses are unbalanced, always add a semicolon to break any potential expression
+          // This ensures the export is not part of any function call or expression
+          const hasUnbalancedParens = parenDepth !== 0 || braceDepth !== 0;
+          const needsSemicolon = hasUnbalancedParens || 
+                                 (lastLineTrimmed && 
+                                  !lastLineTrimmed.endsWith(';') && 
+                                  !lastLineTrimmed.endsWith('}') && 
+                                  !lastLineTrimmed.endsWith(')') &&
+                                  !lastLineTrimmed.endsWith(']'));
           
           // Ensure export is properly separated with blank lines
-          const separator = (needsSemicolon || forceSemicolon) ? ';\n\n' : '\n\n';
+          // Always add semicolon if unbalanced, even if line ends with ) or }
+          const separator = needsSemicolon ? ';\n\n' : '\n\n';
           const fixedCode = cleanedBefore + separator + exportText;
           return fixedCode;
         }
