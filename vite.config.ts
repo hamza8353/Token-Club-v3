@@ -500,49 +500,6 @@ const setupBufferGlobals = () => {
                                   nextLineTrimmed.startsWith('];') || nextLineTrimmed.startsWith('});') ||
                                   nextLineTrimmed.endsWith('];') || nextLineTrimmed.endsWith('});');
             }
-            // Also check if statement completion is within next 2 lines
-            if (!nextLineCompletes && i + 2 < lines.length) {
-              const nextNextLineTrimmed = lines[i + 2].trim();
-              if (nextNextLineTrimmed === '];' || nextNextLineTrimmed === ']);' || 
-                  nextNextLineTrimmed.startsWith('];') || nextNextLineTrimmed.startsWith('});')) {
-                nextLineCompletes = true;
-              }
-            }
-            // CRITICAL: If current line ends with ], ALWAYS delay closing until we see statement completion
-            // This prevents closing wrapper in the middle of multi-line statements like new Map([...]);
-            if (currentLineEndsWithBracket) {
-              // Check if any of the next few lines will complete the statement
-              let willCompleteSoon = false;
-              for (let j = 1; j <= 5 && i + j < lines.length; j++) {
-                const checkLine = lines[i + j].trim();
-                // Check for statement completion patterns - be very permissive
-                if (checkLine.includes('];') || checkLine.includes('});') || 
-                    checkLine === '];' || checkLine === ']);' || 
-                    checkLine.startsWith('];') || checkLine.startsWith('});') ||
-                    checkLine.endsWith('];') || checkLine.endsWith('});')) {
-                  willCompleteSoon = true;
-                  break;
-                }
-                // Stop if we hit something that's clearly a new statement (not part of array/object)
-                // But allow template strings, array elements, comments, etc.
-                if (checkLine && 
-                    !checkLine.startsWith(']') && !checkLine.startsWith('}') && 
-                    !checkLine.startsWith('//') && !checkLine.startsWith('/*') && 
-                    !checkLine.startsWith('*') && !checkLine.startsWith('tt`') && 
-                    !checkLine.startsWith('[') && !checkLine.match(/^\s*["'`]/) && 
-                    checkLine !== '' && !checkLine.match(/^\s*\d/) &&
-                    !checkLine.match(/^\s*[a-zA-Z_$]/)) {
-                  // This looks like a new statement, stop looking
-                  break;
-                }
-              }
-              // If we found completion coming soon OR if next line completes, don't close yet
-              // ALWAYS delay closing if line ends with ] - wait for completion
-              if (willCompleteSoon || nextLineCompletes || true) { // Always delay for safety
-                // Don't close wrapper yet - wait for statement completion line to be processed
-                continue; // Skip rest of loop iteration, don't process closing logic
-              }
-            }
             // Don't close if line ends with opening bracket/paren (incomplete statement)
             const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
             // Check if next few lines complete the statement (look ahead up to 5 lines)
