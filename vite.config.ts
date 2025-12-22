@@ -373,6 +373,25 @@ const setupBufferGlobals = () => {
             
             newLines.push(line);
             
+            // Check if we're waiting for a variable and this line uses it
+            const waitingForVar = (newLines as any).__waitingForVar;
+            if (waitingForVar && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(line)) {
+              (newLines as any).__waitingVarLines = ((newLines as any).__waitingVarLines || 0) + 1;
+            }
+            
+            // Check if we should close the waiting wrapper
+            const waitingVarLines = (newLines as any).__waitingVarLines || 0;
+            const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
+            if (waitingForVar && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
+              if (waitingVarLines > 0) {
+                newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
+                delete (newLines as any).__waitingForVar;
+                delete (newLines as any).__waitingVarStart;
+                delete (newLines as any).__waitingVarLines;
+                delete (newLines as any).__waitingVarCloseAfter;
+              }
+            }
+            
             if (braceDepth === 0) {
               // Class ended, close the factory function and assign to variable
               const lastLine = newLines[newLines.length - 1];
@@ -400,25 +419,39 @@ const setupBufferGlobals = () => {
                 delete (newLines as any).__pendingVarNameInWrapper;
               }
               
-              // Skip the look-ahead wrapping code since variable is initialized
+              // Wrap subsequent lines that use this variable to wait for initialization
+              // Since the factory might fail initially, we need to wait for the variable
               let lookAhead = 0;
               let wrappedNext = false;
-              while (false && lookAhead < 5 && i + lookAhead + 1 < lines.length) {
+              let linesToWrap = 0;
+              while (lookAhead < 10 && i + lookAhead + 1 < lines.length) {
                 const nextLine = lines[i + lookAhead + 1];
-                if (nextLine && new RegExp(`\\b${storedVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;])`).test(nextLine)) {
+                // Check if this line uses the variable
+                if (nextLine && new RegExp(`\\b${storedVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(nextLine)) {
+                  linesToWrap++;
                   // Found a line that uses the variable - wrap it
                   if (!wrappedNext) {
-                    newLines.push(`(function(){function _waitFor${storedVarName.replace(/\$/g, '_')}(){if(!${storedVarName}){queueMicrotask(_waitFor${storedVarName.replace(/\$/g, '_')});return;}`);
+                    // Start wrapper function that waits for variable to be initialized
+                    newLines.push(`(function(){function _waitFor${storedVarName.replace(/\$/g, '_')}(){if(!${storedVarName}){setTimeout(_waitFor${storedVarName.replace(/\$/g, '_')},0);return;}`);
                     wrappedNext = true;
+                    (newLines as any).__waitingForVar = storedVarName;
+                    (newLines as any).__waitingVarStart = newLines.length;
+                    (newLines as any).__waitingVarLines = 0;
                   }
-                  // This line will be processed in the next iteration
+                }
+                // Stop if we hit an empty line or comment (likely end of related code block)
+                if (nextLine && (nextLine.trim() === '' || nextLine.trim().startsWith('//') || nextLine.trim().startsWith('/*') || nextLine.trim().startsWith('*'))) {
+                  if (wrappedNext && linesToWrap > 0) {
+                    // Close the wrapper before the empty line/comment
+                    (newLines as any).__waitingVarCloseAfter = linesToWrap;
+                  }
                   break;
                 }
                 lookAhead++;
               }
-              if (wrappedNext) {
-                // We'll close the wrapper function after processing the next few lines
-                (newLines as any).__wrapCloseAfter = 5;
+              // If we found lines to wrap but didn't hit an empty line, close after 3-4 lines
+              if (wrappedNext && linesToWrap > 0 && !(newLines as any).__waitingVarCloseAfter) {
+                (newLines as any).__waitingVarCloseAfter = Math.min(linesToWrap, 4);
               }
               inIIFE = false;
               braceDepth = 0;
@@ -429,6 +462,25 @@ const setupBufferGlobals = () => {
               delete (newLines as any).__factoryVarName;
             }
             continue;
+          }
+          
+          // Check if we're waiting for a variable and this line uses it (outside IIFE)
+          const waitingForVar = (newLines as any).__waitingForVar;
+          if (waitingForVar && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(line)) {
+            (newLines as any).__waitingVarLines = ((newLines as any).__waitingVarLines || 0) + 1;
+          }
+          
+          // Check if we should close the waiting wrapper (outside IIFE)
+          const waitingVarLines = (newLines as any).__waitingVarLines || 0;
+          const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
+          if (waitingForVar && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
+            if (waitingVarLines > 0) {
+              newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
+              delete (newLines as any).__waitingForVar;
+              delete (newLines as any).__waitingVarStart;
+              delete (newLines as any).__waitingVarLines;
+              delete (newLines as any).__waitingVarCloseAfter;
+            }
           }
           
           newLines.push(line);
