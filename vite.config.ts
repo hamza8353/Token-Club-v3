@@ -67,8 +67,10 @@ const setupBufferGlobals = () => {
               continue;
             }
             
-            // Remove any trailing semicolons and comments
+            // Remove any trailing semicolons, whitespace, and comments
             let finalBefore = beforeExport.trimEnd();
+            
+            // Remove all trailing semicolons (could be multiple from renderChunk)
             while (finalBefore.endsWith(';')) {
               finalBefore = finalBefore.slice(0, -1).trimEnd();
             }
@@ -76,7 +78,10 @@ const setupBufferGlobals = () => {
             // Remove any comments that might be before export
             finalBefore = finalBefore.replace(/\/\/[^\n]*\n*$/g, '').trimEnd();
             
-            // CRITICAL: Add a semicolon and ensure proper separation
+            // Remove any trailing whitespace/newlines
+            finalBefore = finalBefore.trimEnd();
+            
+            // CRITICAL: Add a single semicolon and ensure proper separation
             // This ensures the export is at module level
             // Multiple blank lines help the parser recognize module level
             const separator = ';\n\n\n';
