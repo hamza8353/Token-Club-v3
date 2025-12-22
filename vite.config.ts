@@ -40,20 +40,10 @@ const fixBrokenStrings = () => {
           // Pattern: .indexOf("file: followed by newline (string is broken)
           // Replace with: .indexOf("file://") === 0) {
           
-          // Method 1: Replace pattern that ends with newline
-          code = code.replace(/\.indexOf\("file:\s*\n/g, '.indexOf("file://") === 0) {\n');
-          
-          // Method 2: Replace pattern followed by options.status (common case)
-          code = code.replace(/\.indexOf\("file:\s*\n\s+options\.status/g, '.indexOf("file://") === 0) {\n          options.status');
-          
-          // Method 3: Replace if statement pattern
-          code = code.replace(/if\s*\([^)]*\.indexOf\("file:/g, (match) => {
-            return match.replace(/\.indexOf\("file:/, '.indexOf("file://") === 0) {');
-          });
-          
-          // Method 4: Direct replacement of unclosed pattern
-          // Look for .indexOf("file: not followed by // or closing quote
-          code = code.replace(/\.indexOf\("file:(?!\/\/)(?!"\))/g, '.indexOf("file://") === 0) {');
+          // Fix broken string: .indexOf("file: (unclosed - not followed by // or ")
+          // Only match if NOT followed by // (which would be file://)
+          // Use negative lookahead to ensure we don't match correct patterns
+          code = code.replace(/\.indexOf\("file:(?!\/\/)/g, '.indexOf("file://") === 0) {');
           
           chunk.code = code;
         }
