@@ -16,16 +16,16 @@ import { initAnalytics } from './lib/analytics'
 // Initialize Google Analytics
 initAnalytics()
 
-// PWA: register service worker (silent; no console output)
-if (import.meta.env.PROD) {
-  import('virtual:pwa-register').then((module) => {
-    if (module && module.registerSW) {
-      module.registerSW({ immediate: true })
-    }
-  }).catch(() => {
-    // PWA registration failed, continue without it
-  })
-}
+// PWA registration disabled to avoid stale service worker during debugging
+// if (import.meta.env.PROD) {
+//   import('virtual:pwa-register').then((module) => {
+//     if (module && module.registerSW) {
+//       module.registerSW({ immediate: true })
+//     }
+//   }).catch(() => {
+//     // PWA registration failed, continue without it
+//   })
+// }
 
 // Simple boot diagnostics to detect silent failures
 const rootEl = document.getElementById('root')
