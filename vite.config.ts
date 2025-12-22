@@ -25,10 +25,30 @@ const suppressSourcemapWarnings = () => {
   };
 };
 
+// Plugin to fix broken strings in vendor chunk
+const fixBrokenStrings = () => {
+  return {
+    name: 'fix-broken-strings',
+    generateBundle(options, bundle) {
+      for (const fileName in bundle) {
+        const chunk = bundle[fileName];
+        if (chunk.type === 'chunk' && fileName.includes('vendor')) {
+          // Fix broken string: request.url.indexOf("file: (unclosed)
+          // This comes from a dependency (likely axios/fetch polyfill)
+          if (chunk.code.includes('.indexOf("file:') && !chunk.code.includes('.indexOf("file://"')) {
+            chunk.code = chunk.code.replace(/\.indexOf\("file:/g, '.indexOf("file://") === 0) {');
+          }
+        }
+      }
+    },
+  };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     suppressSourcemapWarnings(),
+    fixBrokenStrings(),
     react({
       fastRefresh: true,
     }),
