@@ -483,7 +483,12 @@ const setupBufferGlobals = () => {
               }
             }
             // Close if we've wrapped all expected lines AND next line doesn't use the variable
-            if (!nextLineUsesVar && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
+            // Also check that the current line is a complete statement (ends with ;, }, ], or ))
+            const lineTrimmed = line.trim();
+            // Don't close if line ends with opening bracket/paren (incomplete statement)
+            const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
+            const isCompleteStatement = lineTrimmed.endsWith(';') || lineTrimmed.endsWith('}') || lineTrimmed.endsWith(']') || lineTrimmed.endsWith(')') || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*');
+            if (!nextLineUsesVar && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
               newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
               delete (newLines as any).__waitingForVar;
               delete (newLines as any).__waitingVarStart;
@@ -496,7 +501,11 @@ const setupBufferGlobals = () => {
           // Check if we should close the waiting wrapper (outside IIFE) - for non-matching lines
           const waitingVarLines = (newLines as any).__waitingVarLines || 0;
           const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
-          if (waitingForVar && waitingVarLines > 0 && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
+          const lineTrimmed = line.trim();
+          // Don't close if line ends with opening bracket/paren (incomplete statement)
+          const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
+          const isCompleteStatement = lineTrimmed.endsWith(';') || lineTrimmed.endsWith('}') || lineTrimmed.endsWith(']') || lineTrimmed.endsWith(')') || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*');
+          if (waitingForVar && waitingVarLines > 0 && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
             newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
             delete (newLines as any).__waitingForVar;
             delete (newLines as any).__waitingVarStart;
