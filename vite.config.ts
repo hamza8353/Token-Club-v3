@@ -704,7 +704,22 @@ const setupBufferGlobals = () => {
             }
             
             // Ensure export is on a clean line with proper separation
-            const fixedCode = cleanedBefore + '\n\n' + exportText;
+            // Add semicolon if the line before export doesn't end with one
+            const lastLineBeforeExport = cleanedBefore.split('\n').pop() || '';
+            const needsSemicolon = !lastLineBeforeExport.trim().endsWith(';') && 
+                                   !lastLineBeforeExport.trim().endsWith('}') && 
+                                   !lastLineBeforeExport.trim().endsWith(')') &&
+                                   lastLineBeforeExport.trim() !== '';
+            const separator = needsSemicolon ? ';\n\n' : '\n\n';
+            const fixedCode = cleanedBefore + separator + exportText;
+            return fixedCode;
+          }
+          
+          // Even if balanced, ensure export is properly separated
+          const beforeExportText = finalCode.substring(0, exportIndex);
+          const lastLine = beforeExportText.split('\n').pop() || '';
+          if (lastLine.trim() && !lastLine.trim().endsWith(';') && !lastLine.trim().endsWith('}') && !lastLine.trim().endsWith(')')) {
+            const fixedCode = beforeExportText + ';\n\n' + finalCode.substring(exportIndex);
             return fixedCode;
           }
         }
