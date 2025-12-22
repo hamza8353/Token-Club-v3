@@ -60,9 +60,10 @@ const setupBufferGlobals = () => {
           
           // Fix broken strings: if a line ends with an unclosed string like "file:
           // This is a common issue where strings get broken across lines during bundling
-          // Simple replacement: find the broken pattern and fix it
-          // Pattern: if (request.url.indexOf("file: (without closing quote)
-          code = code.replace(/if \(request\.url\.indexOf\("file:/g, 'if (request.url.indexOf("file://") === 0) {');
+          // Use simple string replacement (more reliable than regex for this case)
+          if (code.includes('request.url.indexOf("file:')) {
+            code = code.replace(/request\.url\.indexOf\("file:/g, 'request.url.indexOf("file://") === 0) {');
+          }
           
           const exportIndex = code.lastIndexOf('export {');
           if (exportIndex > 0) {
