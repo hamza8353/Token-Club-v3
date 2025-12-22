@@ -693,23 +693,23 @@ const setupBufferGlobals = () => {
                                              lastNonEmptyLine.endsWith(']);') ||
                                              lastNonEmptyLine.endsWith('}));');
           
+          // CRITICAL: The export MUST be at module level
+          // Even if the last line ends with a terminator, we need to ensure
+          // the export is not inside any scope. The safest approach is to
+          // add a dummy statement that forces the parser to recognize module level
+          // and then add the export on a new line with proper separation
+          
           // Remove any trailing semicolons to avoid double semicolons
-          // But preserve the structure if it already ends with a terminator
-          if (!lastLineEndsWithTerminator) {
-            // The last line doesn't end with a terminator, so we need to add one
-            // This ensures the export is at module level
-            const separator = ';\n\n\n';
-            const fixedCode = finalBefore + separator + exportText;
-            return fixedCode;
-          } else {
-            // The last line already ends with a terminator
-            // Just ensure proper separation with blank lines
-            // CRITICAL: Add a comment to ensure the parser treats this as a new statement
-            // This helps break any potential scope issues
-            const separator = '\n\n// Export at module level\n\n';
-            const fixedCode = finalBefore + separator + exportText;
-            return fixedCode;
+          while (finalBefore.endsWith(';')) {
+            finalBefore = finalBefore.slice(0, -1).trimEnd();
           }
+          
+          // CRITICAL: Add a dummy variable declaration to force module-level parsing
+          // This ensures the export is definitely at module level, not inside any scope
+          // The dummy statement is immediately followed by the export, ensuring proper separation
+          const separator = ';\n\n// Ensure export is at module level\nvoid 0;\n\n';
+          const fixedCode = finalBefore + separator + exportText;
+          return fixedCode;
         }
         
         return finalCode;
