@@ -51,12 +51,18 @@ const setupBufferGlobals = () => {
   return {
     name: 'setup-buffer-globals',
     generateBundle(options, bundle) {
-      // Fix export statements in vendor chunk after all chunks are generated
+      // Fix export statements and broken strings in vendor chunk after all chunks are generated
       // This is more reliable than renderChunk because it processes the final bundle
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
         if (chunk.type === 'chunk' && fileName.includes('vendor')) {
-          const code = chunk.code;
+          let code = chunk.code;
+          
+          // Fix broken strings: if a line ends with an unclosed string like "file:
+          // This is a common issue where strings get broken across lines during bundling
+          // Direct string replacement for the exact pattern we see
+          code = code.replace(/if \(request\.url\.indexOf\("file:\s*\n\s+options\.status\s*=\s*200;/g, 'if (request.url.indexOf("file://") === 0) {\n          options.status = 200;');
+          
           const exportIndex = code.lastIndexOf('export {');
           if (exportIndex > 0) {
             const beforeExport = code.substring(0, exportIndex);
