@@ -698,17 +698,17 @@ const setupBufferGlobals = () => {
           
           let cleanedBefore = beforeExport.trimEnd();
           
-          // CRITICAL: Ensure we're at module level before export
-          // If we have positive depth, we're inside a scope - close it
-          // If we have negative depth, we have extra closings - remove trailing ones completely
-          if (parenDepth > 0 || braceDepth > 0) {
-            // We're inside a scope - close it
-            cleanedBefore += ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
-          } else if (parenDepth < 0 || braceDepth < 0) {
-            // We have extra closings - remove ALL trailing closings to get to module level
-            // Don't add any back - we want to be at depth 0 (module level)
+          // CRITICAL: Don't try to fix unbalanced parentheses/braces automatically
+          // The depth calculation can be inaccurate due to string literals, comments, etc.
+          // Instead, just ensure the export is properly separated with a semicolon
+          // This prevents the parser from treating it as part of an expression
+          // Only remove trailing closings if depth is VERY negative (likely a real issue)
+          if (parenDepth < -5 || braceDepth < -5) {
+            // We have significantly extra closings - remove ALL trailing closings
             cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
           }
+          // Don't add closings - the depth calculation is unreliable and adding closings
+          // can cause syntax errors if we're wrong
           
           // Find the last non-empty line before export
           const linesBeforeExport = cleanedBefore.split('\n');
