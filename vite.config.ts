@@ -663,84 +663,24 @@ const setupBufferGlobals = () => {
           const beforeExport = finalCode.substring(0, exportIndex);
           const exportText = finalCode.substring(exportIndex);
           
-          // Count parentheses and braces to check if we're inside a scope
-          // Ignore string literals to get accurate counts
-          let parenDepth = 0;
-          let braceDepth = 0;
-          let inString = false;
-          let stringChar = '';
-          let escapeNext = false;
-          
-          for (let i = 0; i < beforeExport.length; i++) {
-            const char = beforeExport[i];
-            if (escapeNext) {
-              escapeNext = false;
-              continue;
-            }
-            if (char === '\\') {
-              escapeNext = true;
-              continue;
-            }
-            if (!inString) {
-              if (char === '"' || char === "'" || char === '`') {
-                inString = true;
-                stringChar = char;
-              } else if (char === '(') parenDepth++;
-              else if (char === ')') parenDepth--;
-              else if (char === '{') braceDepth++;
-              else if (char === '}') braceDepth--;
-            } else {
-              if (char === stringChar) {
-                inString = false;
-              }
-            }
+          // Ensure the export text is valid - it should start with 'export'
+          if (!exportText.trim().startsWith('export')) {
+            // Something went wrong - return original code
+            return finalCode;
           }
           
-          let cleanedBefore = beforeExport.trimEnd();
-          
-          // CRITICAL: Don't try to fix unbalanced parentheses/braces automatically
-          // The depth calculation can be inaccurate due to string literals, comments, etc.
-          // Instead, just ensure the export is properly separated with a semicolon
-          // This prevents the parser from treating it as part of an expression
-          // Only remove trailing closings if depth is VERY negative (likely a real issue)
-          if (parenDepth < -5 || braceDepth < -5) {
-            // We have significantly extra closings - remove ALL trailing closings
-            cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
-          }
-          // Don't add closings - the depth calculation is unreliable and adding closings
-          // can cause syntax errors if we're wrong
-          
-          // Find the last non-empty line before export
-          const linesBeforeExport = cleanedBefore.split('\n');
-          let lastNonEmptyLine = '';
-          for (let i = linesBeforeExport.length - 1; i >= 0; i--) {
-            const line = linesBeforeExport[i].trim();
-            if (line && !line.startsWith('//') && !line.startsWith('/*')) {
-              lastNonEmptyLine = line;
-              break;
-            }
-          }
-          
-          // CRITICAL: Always ensure export is at module level
+          // CRITICAL: Simply ensure the export is properly separated
           // Remove any trailing semicolons to avoid double semicolons
-          let finalBefore = cleanedBefore.trimEnd();
+          let finalBefore = beforeExport.trimEnd();
           while (finalBefore.endsWith(';')) {
             finalBefore = finalBefore.slice(0, -1).trimEnd();
           }
           
           // CRITICAL: Always add semicolon before export to ensure it's at module level
           // This prevents the parser from treating it as part of an expression
-          // The semicolon MUST be added, even if the last line ends with ), }, or ]
-          // This breaks any potential expression and ensures the export is a new statement
-          
-          // Ensure the last non-empty line is properly terminated
-          // If it ends with ), }, or ], we still need a semicolon to break the expression
-          const needsSemicolon = true; // Always add semicolon for safety
-          
-          // CRITICAL: Ensure export is properly separated and ALWAYS valid
-          // Add semicolon and blank lines to ensure complete isolation
-          // The semicolon will break any expression, making the export a new statement
-          const separator = needsSemicolon ? ';\n\n' : '\n\n';
+          // The semicolon MUST be added to break any potential expression
+          // Add multiple blank lines for complete visual separation
+          const separator = ';\n\n\n';
           const fixedCode = finalBefore + separator + exportText;
           return fixedCode;
         }
