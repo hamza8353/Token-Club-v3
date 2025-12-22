@@ -52,11 +52,37 @@ const fixBrokenStrings = () => {
   };
 };
 
+// Plugin to ensure proper initialization order for metaplex and vendor chunks
+const ensureMetaplexInit = () => {
+  return {
+    name: 'ensure-metaplex-init',
+    renderChunk(code, chunk, options) {
+      // Ensure metaplex and vendor chunks have proper initialization
+      // The "codes" error suggests something is trying to set a property on undefined
+      // This often happens when error objects or status code mappings aren't initialized
+      if (chunk.name === 'metaplex' || chunk.name === 'vendor') {
+        // Add initialization code at the beginning to ensure globals and error objects exist
+        const initCode = `(function(){
+          if(typeof globalThis==='undefined'){var globalThis=window||global||self||{};}
+          if(typeof global==='undefined'){var global=globalThis;}
+          if(typeof process==='undefined'){var process={env:{},browser:true};}
+          if(typeof Buffer==='undefined'&&typeof globalThis.Buffer!=='undefined'){var Buffer=globalThis.Buffer;}
+          // Ensure Error objects have proper structure
+          if(typeof Error!=='undefined'&&!Error.codes){try{Error.codes={};}catch(e){}}
+        })();\n`;
+        return initCode + code;
+      }
+      return null;
+    },
+  };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     suppressSourcemapWarnings(),
     fixBrokenStrings(),
+    ensureMetaplexInit(),
     react({
       fastRefresh: true,
     }),
