@@ -384,7 +384,7 @@ const setupBufferGlobals = () => {
             const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
             if (waitingForVar && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
               if (waitingVarLines > 0) {
-                newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
+                newLines.push(`_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
                 delete (newLines as any).__waitingForVar;
                 delete (newLines as any).__waitingVarStart;
                 delete (newLines as any).__waitingVarLines;
@@ -549,7 +549,7 @@ const setupBufferGlobals = () => {
             const nextLineStartsWithExport = i + 1 < lines.length && lines[i + 1].trim().startsWith('export');
             const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !(currentLineEndsWithBracket && nextLineCompletes) && !stillHasIncompleteBracket && !nextLineStartsWithExport;
             if (!nextLineUsesVar && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
-              newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
+              newLines.push(`_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
               delete (newLines as any).__waitingForVar;
               delete (newLines as any).__waitingVarStart;
               delete (newLines as any).__waitingVarLines;
@@ -639,7 +639,7 @@ const setupBufferGlobals = () => {
           }
           const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !stillHasIncompleteBracket && !previousLineEndedWithBracket && !insideTemplateString;
           if (waitingForVar && waitingVarLines > 0 && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
-            newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
+            newLines.push(`_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
             delete (newLines as any).__waitingForVar;
             delete (newLines as any).__waitingVarStart;
             delete (newLines as any).__waitingVarLines;
