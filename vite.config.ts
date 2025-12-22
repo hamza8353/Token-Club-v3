@@ -670,24 +670,46 @@ const setupBufferGlobals = () => {
           }
           
           // CRITICAL: Ensure export is at module level
-          // Don't try to fix unclosed scopes automatically - depth calculation is unreliable
-          // Just ensure the export is properly separated with a semicolon
+          // The export MUST be at the top level, not inside any function/IIFE scope
           let finalBefore = beforeExport.trimEnd();
           
-          // Remove any trailing semicolons to avoid double semicolons
-          while (finalBefore.endsWith(';')) {
-            finalBefore = finalBefore.slice(0, -1).trimEnd();
+          // Find the last non-empty, non-comment line
+          const lines = finalBefore.split('\n');
+          let lastNonEmptyLine = '';
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const trimmed = lines[i].trim();
+            if (trimmed && !trimmed.startsWith('//') && !trimmed.startsWith('/*') && !trimmed.startsWith('*')) {
+              lastNonEmptyLine = trimmed;
+              break;
+            }
           }
           
-          // CRITICAL: Always add semicolon before export to ensure it's at module level
-          // This prevents the parser from treating it as part of an expression
-          // The semicolon MUST be added to break any potential expression
-          // Add multiple blank lines for complete visual separation
-          // DO NOT add closing parentheses/braces - depth calculation is unreliable
-          // and can cause syntax errors if we add too many or too few
-          const separator = ';\n\n\n';
-          const fixedCode = finalBefore + separator + exportText;
-          return fixedCode;
+          // CRITICAL: The export statement must be at module level
+          // If the last line ends with })); or });, it's already properly terminated
+          // But we need to ensure the export is NOT inside that scope
+          // The safest approach is to ensure there's a clear statement boundary
+          const lastLineEndsWithTerminator = lastNonEmptyLine.endsWith(';') || 
+                                             lastNonEmptyLine.endsWith('});') || 
+                                             lastNonEmptyLine.endsWith(']);') ||
+                                             lastNonEmptyLine.endsWith('}));');
+          
+          // Remove any trailing semicolons to avoid double semicolons
+          // But preserve the structure if it already ends with a terminator
+          if (!lastLineEndsWithTerminator) {
+            // The last line doesn't end with a terminator, so we need to add one
+            // This ensures the export is at module level
+            const separator = ';\n\n\n';
+            const fixedCode = finalBefore + separator + exportText;
+            return fixedCode;
+          } else {
+            // The last line already ends with a terminator
+            // Just ensure proper separation with blank lines
+            // CRITICAL: Add a comment to ensure the parser treats this as a new statement
+            // This helps break any potential scope issues
+            const separator = '\n\n// Export at module level\n\n';
+            const fixedCode = finalBefore + separator + exportText;
+            return fixedCode;
+          }
         }
         
         return finalCode;
