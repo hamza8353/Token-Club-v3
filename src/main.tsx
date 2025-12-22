@@ -2,6 +2,9 @@
 // This ensures Buffer is available globally before Solana packages load
 import './polyfills'
 
+// Boot log to confirm entry execution
+console.log('[main] entry start')
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
@@ -63,6 +66,8 @@ try {
   )
   console.log('[boot] render ok')
   rootEl.setAttribute('data-boot', 'rendered')
+
+console.log('[main] render complete')
 } catch (err) {
   console.error('[boot] render failed', err)
   if (rootEl) {
