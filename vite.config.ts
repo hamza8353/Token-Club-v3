@@ -375,7 +375,7 @@ const setupBufferGlobals = () => {
             
             // Check if we're waiting for a variable and this line uses it
             const waitingForVar = (newLines as any).__waitingForVar;
-            if (waitingForVar && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(line)) {
+            if (waitingForVar && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:\\)\\}])`).test(line)) {
               (newLines as any).__waitingVarLines = ((newLines as any).__waitingVarLines || 0) + 1;
             }
             
@@ -427,7 +427,7 @@ const setupBufferGlobals = () => {
               while (lookAhead < 15 && i + lookAhead + 1 < lines.length) {
                 const nextLine = lines[i + lookAhead + 1];
                 // Check if this line uses the variable
-                if (nextLine && new RegExp(`\\b${storedVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(nextLine)) {
+                if (nextLine && new RegExp(`\\b${storedVarName.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:\\)\\}])`).test(nextLine)) {
                   linesToWrap++;
                   // Found a line that uses the variable - wrap it
                   if (!wrappedNext) {
@@ -467,7 +467,7 @@ const setupBufferGlobals = () => {
           
           // Check if we're waiting for a variable and this line uses it (outside IIFE)
           const waitingForVar = (newLines as any).__waitingForVar;
-          if (waitingForVar && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(line)) {
+          if (waitingForVar && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:\\)\\}])`).test(line)) {
             (newLines as any).__waitingVarLines = ((newLines as any).__waitingVarLines || 0) + 1;
             // Add the line inside the wrapper
             newLines.push(line);
@@ -478,7 +478,7 @@ const setupBufferGlobals = () => {
             let nextLineUsesVar = false;
             if (i + 1 < lines.length) {
               const nextLine = lines[i + 1];
-              if (nextLine && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(nextLine)) {
+              if (nextLine && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:\\)\\}])`).test(nextLine)) {
                 nextLineUsesVar = true;
               }
             }
