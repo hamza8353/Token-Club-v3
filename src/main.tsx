@@ -28,6 +28,10 @@ if (import.meta.env.PROD) {
 const rootEl = document.getElementById('root')
 if (rootEl) {
   rootEl.setAttribute('data-boot', 'start')
+  rootEl.textContent = 'Loading app...'
+  rootEl.style.color = '#fff'
+  rootEl.style.fontFamily = 'sans-serif'
+  rootEl.style.padding = '12px'
 }
 console.log('[boot] start', {
   hasRoot: !!rootEl,
