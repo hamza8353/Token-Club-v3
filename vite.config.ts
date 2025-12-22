@@ -487,17 +487,35 @@ const setupBufferGlobals = () => {
             const lineTrimmed = line.trim();
             // Don't close if line ends with opening bracket/paren (incomplete statement)
             const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
-            // Check if next few lines complete the statement (look ahead up to 3 lines)
+            // Check if next few lines complete the statement (look ahead up to 5 lines)
             let nextLinesCompleteStatement = false;
-            for (let j = 1; j <= 3 && i + j < lines.length; j++) {
+            let foundClosingBracket = false;
+            for (let j = 1; j <= 5 && i + j < lines.length; j++) {
               const nextLineTrimmed = lines[i + j].trim();
-              if (nextLineTrimmed.startsWith(';') || nextLineTrimmed.startsWith(']);') || nextLineTrimmed.startsWith('});') || nextLineTrimmed === ']' || nextLineTrimmed === '})') {
+              // Check for statement completion patterns
+              if (nextLineTrimmed.startsWith('];') || nextLineTrimmed.startsWith('});') || nextLineTrimmed === '];' || nextLineTrimmed === '});') {
                 nextLinesCompleteStatement = true;
+                foundClosingBracket = true;
                 break;
               }
-              // Stop if we hit a line that uses the variable or starts a new statement
-              if (nextLineTrimmed && !nextLineTrimmed.startsWith(']') && !nextLineTrimmed.startsWith('}') && !nextLineTrimmed.startsWith('//') && !nextLineTrimmed.startsWith('/*') && !nextLineTrimmed.startsWith('*') && nextLineTrimmed !== '') {
-                break;
+              // Check for closing brackets that might be followed by semicolon
+              if (nextLineTrimmed === ']' || nextLineTrimmed === '})') {
+                foundClosingBracket = true;
+                // Check if next line has semicolon
+                if (i + j + 1 < lines.length) {
+                  const nextNextLineTrimmed = lines[i + j + 1].trim();
+                  if (nextNextLineTrimmed.startsWith(';') || nextNextLineTrimmed.startsWith('];') || nextNextLineTrimmed.startsWith('});')) {
+                    nextLinesCompleteStatement = true;
+                    break;
+                  }
+                }
+              }
+              // Stop if we hit a line that uses the variable or starts a new statement (not part of array/object)
+              if (nextLineTrimmed && !nextLineTrimmed.startsWith(']') && !nextLineTrimmed.startsWith('}') && !nextLineTrimmed.startsWith('//') && !nextLineTrimmed.startsWith('/*') && !nextLineTrimmed.startsWith('*') && !nextLineTrimmed.startsWith('tt`') && !nextLineTrimmed.startsWith('[') && nextLineTrimmed !== '') {
+                // If we haven't found a closing bracket yet, this might be a new statement
+                if (!foundClosingBracket) {
+                  break;
+                }
               }
             }
             // A statement is complete if it ends with ; or if next lines complete it
@@ -518,17 +536,35 @@ const setupBufferGlobals = () => {
           const lineTrimmed = line.trim();
           // Don't close if line ends with opening bracket/paren (incomplete statement)
           const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
-          // Check if next few lines complete the statement (look ahead up to 3 lines)
+          // Check if next few lines complete the statement (look ahead up to 5 lines)
           let nextLinesCompleteStatement = false;
-          for (let j = 1; j <= 3 && i + j < lines.length; j++) {
+          let foundClosingBracket = false;
+          for (let j = 1; j <= 5 && i + j < lines.length; j++) {
             const nextLineTrimmed = lines[i + j].trim();
-            if (nextLineTrimmed.startsWith(';') || nextLineTrimmed.startsWith(']);') || nextLineTrimmed.startsWith('});') || nextLineTrimmed === ']' || nextLineTrimmed === '})') {
+            // Check for statement completion patterns
+            if (nextLineTrimmed.startsWith('];') || nextLineTrimmed.startsWith('});') || nextLineTrimmed === '];' || nextLineTrimmed === '});') {
               nextLinesCompleteStatement = true;
+              foundClosingBracket = true;
               break;
             }
-            // Stop if we hit a line that uses the variable or starts a new statement
-            if (nextLineTrimmed && !nextLineTrimmed.startsWith(']') && !nextLineTrimmed.startsWith('}') && !nextLineTrimmed.startsWith('//') && !nextLineTrimmed.startsWith('/*') && !nextLineTrimmed.startsWith('*') && nextLineTrimmed !== '') {
-              break;
+            // Check for closing brackets that might be followed by semicolon
+            if (nextLineTrimmed === ']' || nextLineTrimmed === '})') {
+              foundClosingBracket = true;
+              // Check if next line has semicolon
+              if (i + j + 1 < lines.length) {
+                const nextNextLineTrimmed = lines[i + j + 1].trim();
+                if (nextNextLineTrimmed.startsWith(';') || nextNextLineTrimmed.startsWith('];') || nextNextLineTrimmed.startsWith('});')) {
+                  nextLinesCompleteStatement = true;
+                  break;
+                }
+              }
+            }
+            // Stop if we hit a line that uses the variable or starts a new statement (not part of array/object)
+            if (nextLineTrimmed && !nextLineTrimmed.startsWith(']') && !nextLineTrimmed.startsWith('}') && !nextLineTrimmed.startsWith('//') && !nextLineTrimmed.startsWith('/*') && !nextLineTrimmed.startsWith('*') && !nextLineTrimmed.startsWith('tt`') && !nextLineTrimmed.startsWith('[') && nextLineTrimmed !== '') {
+              // If we haven't found a closing bracket yet, this might be a new statement
+              if (!foundClosingBracket) {
+                break;
+              }
             }
           }
           // A statement is complete if it ends with ; or if next lines complete it
