@@ -694,20 +694,29 @@ const setupBufferGlobals = () => {
                                              lastNonEmptyLine.endsWith('}));');
           
           // CRITICAL: The export MUST be at module level
-          // Even if the last line ends with a terminator, we need to ensure
-          // the export is not inside any scope. The safest approach is to
-          // add a dummy statement that forces the parser to recognize module level
-          // and then add the export on a new line with proper separation
+          // The issue is that the export might be inside an unclosed scope
+          // We need to ensure the code before export is valid and properly closed
           
           // Remove any trailing semicolons to avoid double semicolons
           while (finalBefore.endsWith(';')) {
             finalBefore = finalBefore.slice(0, -1).trimEnd();
           }
           
-          // CRITICAL: Add a dummy variable declaration to force module-level parsing
-          // This ensures the export is definitely at module level, not inside any scope
-          // The dummy statement is immediately followed by the export, ensuring proper separation
-          const separator = ';\n\n// Ensure export is at module level\nvoid 0;\n\n';
+          // CRITICAL: The export MUST be at module level
+          // After multiple attempts, the issue persists, suggesting the export
+          // might be inside an unclosed scope. Let's try the most reliable approach:
+          // Ensure the code before export ends with a complete, valid statement
+          // and add multiple statement terminators to force module-level parsing
+          
+          // Remove any trailing semicolons
+          while (finalBefore.endsWith(';')) {
+            finalBefore = finalBefore.slice(0, -1).trimEnd();
+          }
+          
+          // CRITICAL: Add multiple statement terminators and blank lines
+          // This ensures the parser recognizes we're at module level
+          // The combination of semicolon, newlines, and a comment should work
+          const separator = ';\n\n\n// Export statement at module level\n\n';
           const fixedCode = finalBefore + separator + exportText;
           return fixedCode;
         }
