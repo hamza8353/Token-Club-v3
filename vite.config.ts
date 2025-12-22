@@ -730,14 +730,17 @@ const setupBufferGlobals = () => {
           
           // CRITICAL: Always add semicolon before export to ensure it's at module level
           // This prevents the parser from treating it as part of an expression
-          // Even if balanced, add semicolon to ensure proper statement termination
-          // The semicolon acts as a statement terminator, ensuring the export is a new statement
+          // The semicolon MUST be added, even if the last line ends with ), }, or ]
+          // This breaks any potential expression and ensures the export is a new statement
+          
+          // Ensure the last non-empty line is properly terminated
+          // If it ends with ), }, or ], we still need a semicolon to break the expression
+          const needsSemicolon = true; // Always add semicolon for safety
           
           // CRITICAL: Ensure export is properly separated and ALWAYS valid
-          // Don't add closing braces - the depth calculation is unreliable
-          // Just ensure the export is properly separated with semicolon and blank lines
+          // Add semicolon and blank lines to ensure complete isolation
           // The semicolon will break any expression, making the export a new statement
-          const separator = ';\n\n';
+          const separator = needsSemicolon ? ';\n\n' : '\n\n';
           const fixedCode = finalBefore + separator + exportText;
           return fixedCode;
         }
