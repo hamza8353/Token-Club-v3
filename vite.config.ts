@@ -432,7 +432,7 @@ const setupBufferGlobals = () => {
                   // Found a line that uses the variable - wrap it
                   if (!wrappedNext) {
                     // Start wrapper function that waits for variable to be initialized
-                    newLines.push(`(function(){function _waitFor${storedVarName.replace(/\$/g, '_')}(){if(!${storedVarName}){setTimeout(_waitFor${storedVarName.replace(/\$/g, '_')},0);return;}`);
+                    newLines.push(`(function(){function _waitFor${storedVarName.replace(/\$/g, '_')}(){if(!${storedVarName}){setTimeout(_waitFor${storedVarName.replace(/\$/g, '_')},0);return;}}`);
                     wrappedNext = true;
                     (newLines as any).__waitingForVar = storedVarName;
                     (newLines as any).__waitingVarStart = newLines.length;
@@ -545,7 +545,9 @@ const setupBufferGlobals = () => {
             // But don't close if current line ends with ] and next line will complete it with ];
             // Also add safety check: never close if line ends with ] (incomplete statement)
             const stillHasIncompleteBracket = (lineTrimmed.endsWith(']') && !lineTrimmed.endsWith('];')) || (lineTrimmed.endsWith('})') && !lineTrimmed.endsWith('});'));
-            const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !(currentLineEndsWithBracket && nextLineCompletes) && !stillHasIncompleteBracket;
+            // Don't close if next line starts with export - export statements must be at top level
+            const nextLineStartsWithExport = i + 1 < lines.length && lines[i + 1].trim().startsWith('export');
+            const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !(currentLineEndsWithBracket && nextLineCompletes) && !stillHasIncompleteBracket && !nextLineStartsWithExport;
             if (!nextLineUsesVar && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
               newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
               delete (newLines as any).__waitingForVar;
@@ -611,7 +613,31 @@ const setupBufferGlobals = () => {
             const lastLine = newLines[newLines.length - 1].trim();
             previousLineEndedWithBracket = (lastLine.endsWith(']') && !lastLine.endsWith('];')) || (lastLine.endsWith('})') && !lastLine.endsWith('});'));
           }
-          const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !stillHasIncompleteBracket && !previousLineEndedWithBracket;
+          // Check if we're inside a template string - don't close wrapper if so
+          let insideTemplateString = false;
+          if (i > 0) {
+            // Look backwards to find if we're inside a template string
+            // Check if any recent line contains a template string that's still open
+            for (let j = i - 1; j >= 0 && j >= i - 100; j--) {
+              const checkLine = lines[j];
+              // Check if this line starts a template string (contains = p$2` or similar pattern)
+              if (checkLine.match(/=\s*p\$\d+\s*`/)) {
+                // Count backticks from this line forward to see if template string is closed
+                let backtickCount = 0;
+                for (let k = j; k <= i; k++) {
+                  const countLine = lines[k];
+                  const backticks = (countLine.match(/`/g) || []).length;
+                  backtickCount += backticks;
+                }
+                // If odd number of backticks, template string is still open
+                if (backtickCount % 2 !== 0) {
+                  insideTemplateString = true;
+                  break;
+                }
+              }
+            }
+          }
+          const isCompleteStatement = (lineTrimmed.endsWith(';') || lineTrimmed.endsWith('});') || lineTrimmed.endsWith(']);') || nextLinesCompleteStatement || (lineTrimmed.endsWith('}') && !lineTrimmed.includes('function')) || lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')) && !stillHasIncompleteBracket && !previousLineEndedWithBracket && !insideTemplateString;
           if (waitingForVar && waitingVarLines > 0 && !isIncompleteStatement && isCompleteStatement && (waitingVarLines >= closeAfter || (lineTrimmed === '' || lineTrimmed.startsWith('//') || lineTrimmed.startsWith('/*') || lineTrimmed.startsWith('*')))) {
             newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
             delete (newLines as any).__waitingForVar;
