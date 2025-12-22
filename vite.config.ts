@@ -655,7 +655,32 @@ const setupBufferGlobals = () => {
           newLines.push(line);
         }
         
-        return newLines.join('\n');
+        // CRITICAL: Ensure export statement is at module level
+        // Check if we're inside a function scope before export and fix it
+        const finalCode = newLines.join('\n');
+        const exportIndex = finalCode.lastIndexOf('export {');
+        if (exportIndex > 0) {
+          const beforeExport = finalCode.substring(0, exportIndex);
+          // Count parentheses and braces to check if we're inside a scope
+          let parenDepth = 0;
+          let braceDepth = 0;
+          for (let i = 0; i < beforeExport.length; i++) {
+            const char = beforeExport[i];
+            if (char === '(') parenDepth++;
+            else if (char === ')') parenDepth--;
+            else if (char === '{') braceDepth++;
+            else if (char === '}') braceDepth--;
+          }
+          
+          // If we're inside a scope (negative depth), add closing parentheses/braces before export
+          if (parenDepth < 0 || braceDepth < 0) {
+            const fix = ')'.repeat(-parenDepth) + '}'.repeat(-braceDepth);
+            const fixedCode = finalCode.substring(0, exportIndex) + fix + '\n' + finalCode.substring(exportIndex);
+            return fixedCode;
+          }
+        }
+        
+        return finalCode;
       }
       
       return null; // No changes for other chunks
