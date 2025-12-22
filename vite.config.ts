@@ -468,19 +468,30 @@ const setupBufferGlobals = () => {
           const waitingForVar = (newLines as any).__waitingForVar;
           if (waitingForVar && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(line)) {
             (newLines as any).__waitingVarLines = ((newLines as any).__waitingVarLines || 0) + 1;
-          }
-          
-          // Check if we should close the waiting wrapper (outside IIFE)
-          const waitingVarLines = (newLines as any).__waitingVarLines || 0;
-          const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
-          if (waitingForVar && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
-            if (waitingVarLines > 0) {
+            // Add the line inside the wrapper
+            newLines.push(line);
+            // Check if we should close the wrapper after this line
+            const waitingVarLines = (newLines as any).__waitingVarLines || 0;
+            const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
+            if (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*'))) {
               newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
               delete (newLines as any).__waitingForVar;
               delete (newLines as any).__waitingVarStart;
               delete (newLines as any).__waitingVarLines;
               delete (newLines as any).__waitingVarCloseAfter;
             }
+            continue;
+          }
+          
+          // Check if we should close the waiting wrapper (outside IIFE) - for non-matching lines
+          const waitingVarLines = (newLines as any).__waitingVarLines || 0;
+          const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
+          if (waitingForVar && waitingVarLines > 0 && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
+            newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
+            delete (newLines as any).__waitingForVar;
+            delete (newLines as any).__waitingVarStart;
+            delete (newLines as any).__waitingVarLines;
+            delete (newLines as any).__waitingVarCloseAfter;
           }
           
           newLines.push(line);
