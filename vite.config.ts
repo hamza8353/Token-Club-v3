@@ -474,7 +474,16 @@ const setupBufferGlobals = () => {
             // Check if we should close the wrapper after this line
             const waitingVarLines = (newLines as any).__waitingVarLines || 0;
             const closeAfter = (newLines as any).__waitingVarCloseAfter || 0;
-            if (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*'))) {
+            // Don't close if next line also uses the variable
+            let nextLineUsesVar = false;
+            if (i + 1 < lines.length) {
+              const nextLine = lines[i + 1];
+              if (nextLine && new RegExp(`\\b${waitingForVar.replace(/\$/g, '\\$')}(\\.[\\w$]+|\\[|\\s*[=,;:])`).test(nextLine)) {
+                nextLineUsesVar = true;
+              }
+            }
+            // Close if we've wrapped all expected lines AND next line doesn't use the variable
+            if (!nextLineUsesVar && (waitingVarLines >= closeAfter || (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')))) {
               newLines.push(`}_waitFor${waitingForVar.replace(/\$/g, '_')}();})();`);
               delete (newLines as any).__waitingForVar;
               delete (newLines as any).__waitingVarStart;
