@@ -52,10 +52,10 @@ const setupBufferGlobals = () => {
     name: 'setup-buffer-globals',
     generateBundle(options, bundle) {
       // Fix export statements in vendor chunk after all chunks are generated
-      // This is more reliable than renderChunk
+      // This is more reliable than renderChunk because it processes the final bundle
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
-        if (chunk.type === 'chunk' && chunk.name === 'vendor') {
+        if (chunk.type === 'chunk' && fileName.includes('vendor')) {
           const code = chunk.code;
           const exportIndex = code.lastIndexOf('export {');
           if (exportIndex > 0) {
@@ -67,14 +67,18 @@ const setupBufferGlobals = () => {
               continue;
             }
             
-            // Remove any trailing semicolons
+            // Remove any trailing semicolons and comments
             let finalBefore = beforeExport.trimEnd();
             while (finalBefore.endsWith(';')) {
               finalBefore = finalBefore.slice(0, -1).trimEnd();
             }
             
+            // Remove any comments that might be before export
+            finalBefore = finalBefore.replace(/\/\/[^\n]*\n*$/g, '').trimEnd();
+            
             // CRITICAL: Add a semicolon and ensure proper separation
             // This ensures the export is at module level
+            // Multiple blank lines help the parser recognize module level
             const separator = ';\n\n\n';
             chunk.code = finalBefore + separator + exportText;
           }
