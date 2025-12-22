@@ -504,8 +504,31 @@ const setupBufferGlobals = () => {
                 nextLineCompletes = true;
               }
             }
+            // CRITICAL: If current line ends with ] and next line(s) complete the statement, don't close yet
             if (currentLineEndsWithBracket && nextLineCompletes) {
-              continue; // Don't close yet, wait for next line
+              // Don't close wrapper yet - wait for statement completion line to be processed
+              // This prevents closing in the middle of multi-line statements like new Map([...]);
+              continue; // Skip rest of loop iteration, don't process closing logic
+            }
+            // Also check if current line ends with ] and we haven't seen the completion yet
+            // In this case, delay closing until we process the completion line
+            if (currentLineEndsWithBracket && !nextLineCompletes) {
+              // Check if any of the next few lines will complete it
+              let willCompleteSoon = false;
+              for (let j = 1; j <= 3 && i + j < lines.length; j++) {
+                const checkLine = lines[i + j].trim();
+                if (checkLine === '];' || checkLine === ']);' || checkLine.startsWith('];') || checkLine.startsWith('});')) {
+                  willCompleteSoon = true;
+                  break;
+                }
+                // Stop if we hit something that's not part of the statement
+                if (checkLine && !checkLine.startsWith(']') && !checkLine.startsWith('}') && !checkLine.startsWith('//') && !checkLine.startsWith('/*') && !checkLine.startsWith('*') && !checkLine.startsWith('tt`') && !checkLine.startsWith('[') && checkLine !== '') {
+                  break;
+                }
+              }
+              if (willCompleteSoon) {
+                continue; // Don't close yet, wait for completion
+              }
             }
             // Don't close if line ends with opening bracket/paren (incomplete statement)
             const isIncompleteStatement = lineTrimmed.endsWith('[') || lineTrimmed.endsWith('(') || lineTrimmed.endsWith('{');
