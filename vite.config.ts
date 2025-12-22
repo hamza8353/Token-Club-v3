@@ -712,24 +712,52 @@ const setupBufferGlobals = () => {
             cleanedBefore += ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
           }
           
+          // Recalculate depth after cleaning to ensure we have accurate counts
+          let finalParenDepth = 0;
+          let finalBraceDepth = 0;
+          for (let i = 0; i < cleanedBefore.length; i++) {
+            const char = cleanedBefore[i];
+            if (char === '(') finalParenDepth++;
+            else if (char === ')') finalParenDepth--;
+            else if (char === '{') finalBraceDepth++;
+            else if (char === '}') finalBraceDepth--;
+          }
+          
+          // CRITICAL: If we still have unbalanced parentheses/braces, we need to fix them
+          // If depth is still negative, remove more trailing closings
+          // If depth is positive, add closings
+          if (finalParenDepth < 0 || finalBraceDepth < 0) {
+            // Still have extra closings - remove trailing ones
+            const trailingMatch = cleanedBefore.match(/([\)\}]+)[\s\n]*$/);
+            if (trailingMatch) {
+              const trailing = trailingMatch[1];
+              const parenCount = (trailing.match(/\)/g) || []).length;
+              const braceCount = (trailing.match(/\}/g) || []).length;
+              const parensToRemove = Math.min(parenCount, -finalParenDepth);
+              const bracesToRemove = Math.min(braceCount, -finalBraceDepth);
+              cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
+              const keepParens = Math.max(0, parenCount - parensToRemove);
+              const keepBraces = Math.max(0, braceCount - bracesToRemove);
+              if (keepParens > 0 || keepBraces > 0) {
+                cleanedBefore += ')'.repeat(keepParens) + '}'.repeat(keepBraces);
+              }
+            }
+          } else if (finalParenDepth > 0 || finalBraceDepth > 0) {
+            // Still have unclosed openings - add closings
+            cleanedBefore += ')'.repeat(finalParenDepth) + '}'.repeat(finalBraceDepth);
+          }
+          
           // CRITICAL: Ensure export is on a completely clean line, separated from any code
-          // If we have unbalanced parentheses, the export might be parsed as part of an expression
-          // Always add a semicolon before export when parentheses are unbalanced to ensure it's at module level
+          // Always add a semicolon before export to ensure it's not part of any expression
           const lastLineBeforeExport = cleanedBefore.split('\n').pop() || '';
           const lastLineTrimmed = lastLineBeforeExport.trim();
           
-          // If parentheses are unbalanced, always add a semicolon to break any potential expression
-          // This ensures the export is not part of any function call or expression
-          const hasUnbalancedParens = parenDepth !== 0 || braceDepth !== 0;
-          const needsSemicolon = hasUnbalancedParens || 
-                                 (lastLineTrimmed && 
-                                  !lastLineTrimmed.endsWith(';') && 
-                                  !lastLineTrimmed.endsWith('}') && 
-                                  !lastLineTrimmed.endsWith(')') &&
-                                  !lastLineTrimmed.endsWith(']'));
+          // Always add semicolon before export to ensure it's at module level
+          // This prevents the parser from treating it as part of an expression
+          const needsSemicolon = lastLineTrimmed && 
+                                 !lastLineTrimmed.endsWith(';');
           
           // Ensure export is properly separated with blank lines
-          // Always add semicolon if unbalanced, even if line ends with ) or }
           const separator = needsSemicolon ? ';\n\n' : '\n\n';
           const fixedCode = cleanedBefore + separator + exportText;
           return fixedCode;
