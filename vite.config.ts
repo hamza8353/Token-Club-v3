@@ -533,7 +533,8 @@ const setupBufferGlobals = () => {
                 }
               }
               // If we found completion coming soon OR if next line completes, don't close yet
-              if (willCompleteSoon || nextLineCompletes) {
+              // ALWAYS delay closing if line ends with ] - wait for completion
+              if (willCompleteSoon || nextLineCompletes || true) { // Always delay for safety
                 // Don't close wrapper yet - wait for statement completion line to be processed
                 continue; // Skip rest of loop iteration, don't process closing logic
               }
