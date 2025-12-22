@@ -50,6 +50,37 @@ const suppressSourcemapWarnings = () => {
 const setupBufferGlobals = () => {
   return {
     name: 'setup-buffer-globals',
+    generateBundle(options, bundle) {
+      // Fix export statements in vendor chunk after all chunks are generated
+      // This is more reliable than renderChunk
+      for (const fileName in bundle) {
+        const chunk = bundle[fileName];
+        if (chunk.type === 'chunk' && chunk.name === 'vendor') {
+          const code = chunk.code;
+          const exportIndex = code.lastIndexOf('export {');
+          if (exportIndex > 0) {
+            const beforeExport = code.substring(0, exportIndex);
+            const exportText = code.substring(exportIndex);
+            
+            // Ensure the export text is valid
+            if (!exportText.trim().startsWith('export')) {
+              continue;
+            }
+            
+            // Remove any trailing semicolons
+            let finalBefore = beforeExport.trimEnd();
+            while (finalBefore.endsWith(';')) {
+              finalBefore = finalBefore.slice(0, -1).trimEnd();
+            }
+            
+            // CRITICAL: Add a semicolon and ensure proper separation
+            // This ensures the export is at module level
+            const separator = ';\n\n\n';
+            chunk.code = finalBefore + separator + exportText;
+          }
+        }
+      }
+    },
     renderChunk(code, chunk, options) {
       // Handle solana chunk - Buffer is bundled with it, so just set it globally
       if (chunk.name === 'solana') {
