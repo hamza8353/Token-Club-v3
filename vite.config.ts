@@ -485,8 +485,12 @@ const setupBufferGlobals = () => {
             // Close if we've wrapped all expected lines AND next line doesn't use the variable
             // Also check that the current line is a complete statement (ends with ;, }, ], or ))
             const lineTrimmed = line.trim();
-            // Don't close if current line ends with ] and next line completes with ];
+            // CRITICAL: Don't close if current line ends with ] - always wait for completion
             const currentLineEndsWithBracket = (lineTrimmed.endsWith(']') && !lineTrimmed.endsWith('];')) || (lineTrimmed.endsWith('})') && !lineTrimmed.endsWith('});'));
+            // If line ends with ], ALWAYS skip closing logic - wait for completion line
+            if (currentLineEndsWithBracket) {
+              continue; // Skip rest of loop iteration, don't process closing logic
+            }
             // Check if next line (or lines) complete the statement
             let nextLineCompletes = false;
             if (i + 1 < lines.length) {
