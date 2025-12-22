@@ -34,12 +34,8 @@
       "destination": "/index.html"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html",
-      "missing": [
-        { "type": "file" },
-        { "type": "dir" }
-      ]
+      "source": "/((?!assets/|favicon\\.ico|apple-touch-icon\\.png|manifest\\.webmanifest|site\\.webmanifest|robots\\.txt|sitemap\\.xml).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
