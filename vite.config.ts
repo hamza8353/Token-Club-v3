@@ -66,14 +66,10 @@ const ensureMetaplexInit = () => {
           // We'll wrap these in try-catch or ensure the variable exists
           // This is a last-resort fix for direct property assignments
           let code = chunk.code;
-          // Match patterns like: a.codes=... or a$1.codes=... (minified code)
-          // Replace with safe assignment: (a||{}).codes=...
-          code = code.replace(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\.\s*codes\s*=/g, (match, varName) => {
-            // Only replace if it's not already wrapped
-            if (!code.includes(`(${varName}||{}).codes=`)) {
-              return `(${varName}=${varName}||{}).codes=`;
-            }
-            return match;
+          // Match patterns like: a.codes=... or a.format=... (minified code)
+          // Replace with safe assignment: (a||{}).codes=... / (a||{}).format=...
+          code = code.replace(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\.\s*(codes|format)\s*=/g, (match, varName, prop) => {
+            return `(${varName}=${varName}||{}).${prop}=`;
           });
           chunk.code = code;
         }
