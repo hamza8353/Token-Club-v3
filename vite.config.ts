@@ -68,15 +68,11 @@ const setupBufferGlobals = () => {
             }
             
             // Remove any trailing semicolons, whitespace, and comments
-            let finalBefore = beforeExport.trimEnd();
-            
-            // Remove all trailing semicolons (could be multiple from renderChunk)
-            while (finalBefore.endsWith(';')) {
-              finalBefore = finalBefore.slice(0, -1).trimEnd();
-            }
+            // Use regex to remove all trailing semicolons at once (more reliable)
+            let finalBefore = beforeExport.replace(/;+[\s\n]*$/, '').trimEnd();
             
             // Remove any comments that might be before export
-            finalBefore = finalBefore.replace(/\/\/[^\n]*\n*$/g, '').trimEnd();
+            finalBefore = finalBefore.replace(/\/\/[^\n]*\n*$/gm, '').trimEnd();
             
             // Remove any trailing whitespace/newlines
             finalBefore = finalBefore.trimEnd();
@@ -696,7 +692,12 @@ const setupBufferGlobals = () => {
         }
         
         // CRITICAL: Ensure export statement is at module level
-        // The export statement must be at the top level, not inside any function/scope
+        // NOTE: For vendor chunk, we handle export fix in generateBundle hook instead
+        // to avoid conflicts. Only process other chunks here.
+        if (chunk.name === 'vendor') {
+          return newLines.join('\n');
+        }
+        
         const finalCode = newLines.join('\n');
         const exportIndex = finalCode.lastIndexOf('export {');
         if (exportIndex > 0) {
