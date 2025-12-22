@@ -669,18 +669,66 @@ const setupBufferGlobals = () => {
             return finalCode;
           }
           
-          // CRITICAL: Simply ensure the export is properly separated
-          // Remove any trailing semicolons to avoid double semicolons
+          // CRITICAL: Check for unclosed scopes and ensure export is at module level
+          // Count parentheses and braces to detect unclosed scopes
+          let parenDepth = 0;
+          let braceDepth = 0;
+          let inString = false;
+          let stringChar = '';
+          let escapeNext = false;
+          
+          for (let i = 0; i < beforeExport.length; i++) {
+            const char = beforeExport[i];
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
+            }
+            if (char === '\\') {
+              escapeNext = true;
+              continue;
+            }
+            if (!inString) {
+              if (char === '"' || char === "'" || char === '`') {
+                inString = true;
+                stringChar = char;
+              } else if (char === '(') parenDepth++;
+              else if (char === ')') parenDepth--;
+              else if (char === '{') braceDepth++;
+              else if (char === '}') braceDepth--;
+            } else {
+              if (char === stringChar) {
+                inString = false;
+              }
+            }
+          }
+          
+          // CRITICAL: If we have unclosed scopes, we need to close them before export
+          // This ensures the export is at module level, not inside a function/scope
           let finalBefore = beforeExport.trimEnd();
+          
+          // Remove any trailing semicolons to avoid double semicolons
           while (finalBefore.endsWith(';')) {
             finalBefore = finalBefore.slice(0, -1).trimEnd();
+          }
+          
+          // If we have unclosed braces, close them before export
+          // This is critical - unclosed braces mean we're inside a scope
+          let closingBraces = '';
+          if (braceDepth > 0) {
+            closingBraces = '\n' + '}'.repeat(braceDepth);
+          }
+          
+          // If we have unclosed parentheses, close them (but be careful - negative means extra closings)
+          let closingParens = '';
+          if (parenDepth > 0) {
+            closingParens = ')'.repeat(parenDepth);
           }
           
           // CRITICAL: Always add semicolon before export to ensure it's at module level
           // This prevents the parser from treating it as part of an expression
           // The semicolon MUST be added to break any potential expression
           // Add multiple blank lines for complete visual separation
-          const separator = ';\n\n\n';
+          const separator = closingParens + closingBraces + ';\n\n\n';
           const fixedCode = finalBefore + separator + exportText;
           return fixedCode;
         }
