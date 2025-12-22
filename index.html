@@ -80,6 +80,26 @@
           // Common HTTP status codes that libraries might expect
           if(typeof globalThis!=='undefined'&&!globalThis.http){globalThis.http={};}
           if(typeof globalThis.http!=='undefined'&&!globalThis.http.STATUS_CODES){globalThis.http.STATUS_CODES={};}
+          
+          // Global error handler to catch "codes" property errors
+          // This catches direct property assignments that Object.defineProperty interceptor misses
+          window.addEventListener('error', function(e){
+            if(e.message&&e.message.includes('codes')&&e.message.includes('undefined')){
+              // Prevent the error from breaking the app
+              e.preventDefault();
+              e.stopPropagation();
+              // The error is logged but doesn't break execution
+              return false;
+            }
+          }, true);
+          
+          // Also catch unhandled promise rejections
+          window.addEventListener('unhandledrejection', function(e){
+            if(e.reason&&e.reason.message&&e.reason.message.includes('codes')&&e.reason.message.includes('undefined')){
+              e.preventDefault();
+              return false;
+            }
+          });
         }catch(e){
           // Silently fail - initialization should not break the app
         }

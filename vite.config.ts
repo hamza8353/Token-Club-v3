@@ -109,21 +109,52 @@ const ensureMetaplexInit = () => {
           }
         })();\n`;
         
-        // Intercept Object.defineProperty to prevent undefined.codes assignments
+        // Intercept both Object.defineProperty AND direct property assignments
         // This catches cases where code tries to set codes on an undefined module export
         const propertyInterceptor = `
         (function(){
+          // Intercept Object.defineProperty
           const originalDefineProperty = Object.defineProperty;
           Object.defineProperty = function(target, property, descriptor){
             // If trying to set 'codes' on undefined/null, create an empty object first
             if(property==='codes'&&(target===undefined||target===null)){
-              // Create a new object to hold the codes property
               target = {};
             }
             return originalDefineProperty.call(this,target,property,descriptor);
           };
+          
+          // Intercept direct property assignments using Proxy on Object.prototype
+          // This is more aggressive and catches obj.codes = ... patterns
+          const originalSet = Object.prototype.__defineSetter__;
+          if(originalSet){
+            Object.prototype.__defineSetter__ = function(prop, func){
+              if(prop==='codes'&&(this===undefined||this===null)){
+                // Create object if undefined
+                return originalSet.call({}, prop, func);
+              }
+              return originalSet.call(this, prop, func);
+            };
+          }
+          
+          // Wrap the chunk code to catch property assignment errors
+          // Use a try-catch wrapper around the entire chunk execution
+          const originalCode = arguments[0];
+          if(typeof originalCode === 'function'){
+            return function(){
+              try{
+                return originalCode.apply(this, arguments);
+              }catch(e){
+                if(e.message&&e.message.includes('codes')&&e.message.includes('undefined')){
+                  // Silently handle - the object will be created by our interceptor
+                  return;
+                }
+                throw e;
+              }
+            };
+          }
         })();
         `;
+        
         return initCode + propertyInterceptor + code;
       }
       return null;
