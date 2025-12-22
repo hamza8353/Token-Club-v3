@@ -106,7 +106,7 @@ const ensureMetaplexInit = () => {
           if(typeof Buffer==='undefined'&&typeof globalThis.Buffer!=='undefined'){
             var Buffer=globalThis.Buffer;
           }
-          // Polyfill util.inspect for Node.js compatibility
+          // Polyfill util.inspect / util.format for Node.js compatibility
           if(typeof globalThis.util==='undefined'){
             globalThis.util={};
           }
@@ -116,6 +116,31 @@ const ensureMetaplexInit = () => {
                 return JSON.stringify(obj,null,2);
               }catch(e){
                 return String(obj);
+              }
+            };
+          }
+          if(typeof globalThis.util.format==='undefined'){
+            globalThis.util.format=function(){
+              try{
+                const args=Array.prototype.slice.call(arguments);
+                const first=args.shift();
+                if(typeof first!=='string'){return args.join(' ');}
+                let i=0;
+                return String(first).replace(/%[sdj%]/g,function(x){
+                  if(x==='%%')return '%';
+                  if(i>=args.length)return x;
+                  const arg=args[i++];
+                  switch(x){
+                    case '%s': return String(arg);
+                    case '%d': return Number(arg);
+                    case '%j':
+                      try{return JSON.stringify(arg);}
+                      catch(e){return '[Circular]';}
+                    default: return x;
+                  }
+                }) + args.slice(i).join(' ');
+              }catch(e){
+                return '';
               }
             };
           }
