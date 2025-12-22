@@ -700,26 +700,14 @@ const setupBufferGlobals = () => {
           
           // CRITICAL: Ensure we're at module level before export
           // If we have positive depth, we're inside a scope - close it
-          // If we have negative depth, we have extra closings - try to remove trailing ones
+          // If we have negative depth, we have extra closings - remove trailing ones completely
           if (parenDepth > 0 || braceDepth > 0) {
             // We're inside a scope - close it
             cleanedBefore += ')'.repeat(parenDepth) + '}'.repeat(braceDepth);
           } else if (parenDepth < 0 || braceDepth < 0) {
-            // We have extra closings - remove trailing ones
-            const trailingMatch = cleanedBefore.match(/([\)\}]+)[\s\n]*$/);
-            if (trailingMatch) {
-              const trailing = trailingMatch[1];
-              const parenCount = (trailing.match(/\)/g) || []).length;
-              const braceCount = (trailing.match(/\}/g) || []).length;
-              const parensToRemove = Math.min(parenCount, -parenDepth);
-              const bracesToRemove = Math.min(braceCount, -braceDepth);
-              cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
-              const keepParens = Math.max(0, parenCount - parensToRemove);
-              const keepBraces = Math.max(0, braceCount - bracesToRemove);
-              if (keepParens > 0 || keepBraces > 0) {
-                cleanedBefore += ')'.repeat(keepParens) + '}'.repeat(keepBraces);
-              }
-            }
+            // We have extra closings - remove ALL trailing closings to get to module level
+            // Don't add any back - we want to be at depth 0 (module level)
+            cleanedBefore = cleanedBefore.replace(/[\s\n]*[\)\}]+[\s\n]*$/, '');
           }
           
           // Find the last non-empty line before export
