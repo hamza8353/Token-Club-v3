@@ -106,6 +106,19 @@ const ensureMetaplexInit = () => {
           if(typeof Buffer==='undefined'&&typeof globalThis.Buffer!=='undefined'){
             var Buffer=globalThis.Buffer;
           }
+          // Polyfill util.inspect for Node.js compatibility
+          if(typeof globalThis.util==='undefined'){
+            globalThis.util={};
+          }
+          if(typeof globalThis.util.inspect==='undefined'){
+            globalThis.util.inspect=function(obj,options){
+              try{
+                return JSON.stringify(obj,null,2);
+              }catch(e){
+                return String(obj);
+              }
+            };
+          }
           // Fix for "codes" property - ensure common error/status objects exist
           // This is often needed by HTTP libraries or error handling code
           try{
@@ -162,7 +175,7 @@ export default defineConfig({
     ensureMetaplexInit(),
     react(),
     nodePolyfills({
-      include: ['assert', 'buffer', 'process', 'crypto'],
+      include: ['assert', 'buffer', 'process', 'crypto', 'util'],
       globals: {
         Buffer: true,
         global: true,
