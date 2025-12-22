@@ -62,7 +62,11 @@ const ensureMetaplexInit = () => {
       // This often happens when error objects or status code mappings aren't initialized
       if (chunk.name === 'metaplex' || chunk.name === 'vendor') {
         // Add comprehensive initialization code at the beginning
+        // #region agent log
         const initCode = `(function(){
+          // #region agent log
+          try{fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:init-start',message:'Initialization starting',data:{chunkName:'${chunk.name}',hasGlobalThis:typeof globalThis!=='undefined',hasWindow:typeof window!=='undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});}catch(e){}
+          // #endregion agent log
           // Ensure globalThis exists
           if(typeof globalThis==='undefined'){
             var globalThis=window||global||self||{};
@@ -93,8 +97,16 @@ const ensureMetaplexInit = () => {
             if(typeof globalThis!=='undefined'&&!globalThis.statusCodes){
               globalThis.statusCodes={};
             }
-          }catch(e){}
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:init-complete',message:'Initialization complete',data:{chunkName:'${chunk.name}',hasErrorCodes:typeof Error!=='undefined'&&!!Error.codes,hasGlobalCodes:typeof globalThis!=='undefined'&&!!globalThis.codes,hasStatusCodes:typeof globalThis!=='undefined'&&!!globalThis.statusCodes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion agent log
+          }catch(e){
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/9126abf7-b00a-486c-bd22-94d5b34af69a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vite.config.ts:init-error',message:'Initialization error',data:{chunkName:'${chunk.name}',error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion agent log
+          }
         })();\n`;
+        // #endregion agent log
         return initCode + code;
       }
       return null;
