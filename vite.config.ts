@@ -176,8 +176,8 @@ const ensureMetaplexInit = () => {
           // Intercept Object.defineProperty
           const originalDefineProperty = Object.defineProperty;
           Object.defineProperty = function(target, property, descriptor){
-            // If trying to set 'codes' on undefined/null, create an empty object first
-            if(property==='codes'&&(target===undefined||target===null)){
+            // If trying to set 'codes' or 'format' on undefined/null, create an empty object first
+            if((property==='codes' || property==='format') && (target===undefined||target===null)){
               target = {};
             }
             return originalDefineProperty.call(this,target,property,descriptor);
