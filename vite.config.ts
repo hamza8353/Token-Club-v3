@@ -62,16 +62,8 @@ const ensureMetaplexInit = () => {
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
         if (chunk.type === 'chunk' && (fileName.includes('vendor') || fileName.includes('metaplex'))) {
-          // Find and fix patterns like: variable.codes = value where variable might be undefined
-          // We'll wrap these in try-catch or ensure the variable exists
-          // This is a last-resort fix for direct property assignments
-          let code = chunk.code;
-          // Match patterns like: a.codes=... or a.format=... (minified code)
-          // Replace with safe assignment: (a||{}).codes=... / (a||{}).format=...
-          code = code.replace(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\.\s*(codes|format)\s*=/g, (match, varName, prop) => {
-            return `(${varName}=${varName}||{}).${prop}=`;
-          });
-          chunk.code = code;
+          // NOTE: Avoid mutating vendor code here; we handle safety in renderChunk via Object.defineProperty
+          // and util polyfills. Mutating minified code can introduce syntax errors.
         }
       }
     },
