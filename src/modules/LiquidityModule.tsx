@@ -451,61 +451,80 @@ const LiquidityModule = React.memo(() => {
       setCurrentStep(4);
       const signature = await signAndSendTransaction(transaction);
       
-      if (signature) {
-        // Save pool data to localStorage
-        savePoolData({
-          poolAddress: result.poolAddress,
-          positionNftMint: result.positionNft.publicKey.toBase58(),
-          baseTokenMint,
-          quoteTokenMint: 'So11111111111111111111111111111111111111112',
-          createdAt: Date.now(),
-        });
-
-        // Get explorer URL
-        const explorerUrl = network === 'devnet'
-          ? `https://solscan.io/tx/${signature}?cluster=devnet`
-          : `https://solscan.io/tx/${signature}`;
-
-        // Track pool initialization
-        trackLiquidityPoolInitialize({
-          poolAddress: result.poolAddress,
-          baseTokenMint: baseTokenMint,
-          baseAmount: baseAmt,
-          solAmount: solAmt,
-        });
-
-        setModalStatus('success');
-        setModalResult({
-          title: 'Pool Initialized',
-          subtitle: 'Your liquidity pool has been created successfully!',
-          items: [
-            {
-              label: 'Pool Address',
-              value: result.poolAddress,
-              copyValue: result.poolAddress,
-              explorerUrl: `https://solscan.io/account/${result.poolAddress}${network === 'devnet' ? '?cluster=devnet' : ''}`,
-            },
-            {
-              label: 'Position Address',
-              value: result.positionNft.publicKey.toBase58(),
-              copyValue: result.positionNft.publicKey.toBase58(),
-              explorerUrl: `https://solscan.io/account/${result.positionNft.publicKey.toBase58()}${network === 'devnet' ? '?cluster=devnet' : ''}`,
-            },
-            {
-              label: 'Transaction Signature',
-              value: signature,
-              copyValue: signature,
-              explorerUrl,
-            },
-          ],
-          footer: 'Pool address has been saved and will auto-fill in future operations.',
-        });
-
-        // Reset form
-        setBaseTokenMint('');
-        setBaseAmount('');
-        setSolAmount('');
+      if (!signature) {
+        throw new Error('Transaction signature not received');
       }
+
+      // Wait for transaction confirmation
+      setCurrentStep(5);
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
+
+      // Verify pool was actually created on-chain
+      setCurrentStep(6);
+      const poolPublicKey = new PublicKey(result.poolAddress);
+      const poolAccountInfo = await connection.getAccountInfo(poolPublicKey);
+      
+      if (!poolAccountInfo) {
+        throw new Error('Pool was not created on-chain. Transaction may have failed silently.');
+      }
+
+      // Save pool data to localStorage
+      savePoolData({
+        poolAddress: result.poolAddress,
+        positionNftMint: result.positionNft.publicKey.toBase58(),
+        baseTokenMint,
+        quoteTokenMint: 'So11111111111111111111111111111111111111112',
+        createdAt: Date.now(),
+      });
+
+      // Get explorer URL
+      const explorerUrl = network === 'devnet'
+        ? `https://solscan.io/tx/${signature}?cluster=devnet`
+        : `https://solscan.io/tx/${signature}`;
+
+      // Track pool initialization
+      trackLiquidityPoolInitialize({
+        poolAddress: result.poolAddress,
+        baseTokenMint: baseTokenMint,
+        baseAmount: baseAmt,
+        solAmount: solAmt,
+      });
+
+      setModalStatus('success');
+      setModalResult({
+        title: 'Pool Initialized',
+        subtitle: 'Your liquidity pool has been created successfully!',
+        items: [
+          {
+            label: 'Pool Address',
+            value: result.poolAddress,
+            copyValue: result.poolAddress,
+            explorerUrl: `https://solscan.io/account/${result.poolAddress}${network === 'devnet' ? '?cluster=devnet' : ''}`,
+          },
+          {
+            label: 'Position Address',
+            value: result.positionNft.publicKey.toBase58(),
+            copyValue: result.positionNft.publicKey.toBase58(),
+            explorerUrl: `https://solscan.io/account/${result.positionNft.publicKey.toBase58()}${network === 'devnet' ? '?cluster=devnet' : ''}`,
+          },
+          {
+            label: 'Transaction Signature',
+            value: signature,
+            copyValue: signature,
+            explorerUrl,
+          },
+        ],
+        footer: 'Pool address has been saved and will auto-fill in future operations.',
+      });
+
+      // Reset form
+      setBaseTokenMint('');
+      setBaseAmount('');
+      setSolAmount('');
     } catch (error: any) {
       console.error('Initialize pool error:', error);
       setModalStatus('error');
@@ -1648,7 +1667,9 @@ const LiquidityModule = React.memo(() => {
           { title: 'Preparing configuration', description: 'Fetching balances and pool parameters...' },
           { title: 'Building transaction', description: 'Constructing pool instructions...' },
           { title: 'Awaiting signature', description: 'Approve the transaction in your wallet...' },
-          { title: 'Finalizing on-chain', description: 'Waiting for confirmation...' },
+          { title: 'Sending transaction', description: 'Broadcasting to network...' },
+          { title: 'Confirming transaction', description: 'Waiting for blockchain confirmation...' },
+          { title: 'Verifying pool creation', description: 'Checking pool on-chain...' },
         ]}
       />
     </div>
