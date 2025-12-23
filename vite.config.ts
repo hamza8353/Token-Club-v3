@@ -125,10 +125,21 @@ const ensureMetaplexInit = () => {
           // Fix for "codes" property - ensure common error/status objects exist
           // This is often needed by HTTP libraries or error handling code
           try{
+            // Ensure Error.codes exists and all Error subclasses
             if(typeof Error!=='undefined'){
               if(!Error.codes){Error.codes={};}
+              // Ensure common Error subclasses also have codes
+              ['TypeError','ReferenceError','SyntaxError','RangeError','EvalError','URIError'].forEach(function(errorName){
+                try{
+                  if(typeof globalThis[errorName]!=='undefined'&&globalThis[errorName]){
+                    if(!globalThis[errorName].codes){
+                      globalThis[errorName].codes={};
+                    }
+                  }
+                }catch(e){}
+              });
             }
-            // Some libraries use a separate codes object
+            // Some libraries use a separate codes object on globalThis
             if(typeof globalThis!=='undefined'&&!globalThis.codes){
               globalThis.codes={};
             }
@@ -143,15 +154,32 @@ const ensureMetaplexInit = () => {
             if(typeof globalThis.http!=='undefined'&&!globalThis.http.STATUS_CODES){
               globalThis.http.STATUS_CODES={};
             }
+            // Ensure process.errors exists (Node.js pattern)
+            if(typeof process!=='undefined'&&!process.errors){
+              process.errors={};
+            }
+            // Pre-initialize common objects that libraries might assign codes to
+            // This prevents "Cannot set properties of undefined" errors
+            const commonObjects = ['http', 'https', 'net', 'dns', 'tls', 'stream', 'crypto'];
+            commonObjects.forEach(function(objName){
+              try{
+                if(typeof globalThis[objName]==='undefined'){
+                  globalThis[objName]={};
+                }
+                if(globalThis[objName]&&!globalThis[objName].codes){
+                  globalThis[objName].codes={};
+                }
+              }catch(e){}
+            });
           }catch(e){
             // Silently fail - initialization should not break the app
           }
         })();\n`;
         
-        // Intercept Object.defineProperty to prevent undefined.codes assignments
+        // Intercept property assignments to prevent undefined.codes assignments
         const propertyInterceptor = `
         (function(){
-          // Intercept Object.defineProperty
+          // Intercept Object.defineProperty to catch defineProperty calls
           const originalDefineProperty = Object.defineProperty;
           Object.defineProperty = function(target, property, descriptor){
             // If trying to set 'codes' or 'format' on undefined/null, create an empty object first
@@ -160,6 +188,20 @@ const ensureMetaplexInit = () => {
             }
             return originalDefineProperty.call(this,target,property,descriptor);
           };
+          // Wrap common error constructors to ensure they have codes property
+          try{
+            const errorConstructors = ['Error', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError'];
+            errorConstructors.forEach(function(errorName){
+              if(typeof globalThis[errorName]!=='undefined'){
+                const OriginalError = globalThis[errorName];
+                if(OriginalError && !OriginalError.codes){
+                  OriginalError.codes = {};
+                }
+              }
+            });
+          }catch(e){
+            // Silently fail
+          }
         })();
         `;
         
