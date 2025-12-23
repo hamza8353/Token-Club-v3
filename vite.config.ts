@@ -56,22 +56,6 @@ const fixBrokenStrings = () => {
 const ensureMetaplexInit = () => {
   return {
     name: 'ensure-metaplex-init',
-    generateBundle(options, bundle) {
-      // Fix codes property errors in the final bundle
-      // This runs after all chunks are generated
-      for (const fileName in bundle) {
-        const chunk = bundle[fileName];
-        if (chunk.type === 'chunk' && (fileName.includes('vendor') || fileName.includes('metaplex'))) {
-          // Safely rewrite direct assignments to ensure target objects exist
-          // Match patterns like: a.codes=... or a.format=... (minified code)
-          // Replace with safe assignment: (a||{}).codes=... / (a||{}).format=...
-          chunk.code = chunk.code.replace(
-            /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\.\s*(codes|format)\s*=/g,
-            (_m, varName, prop) => `(${varName}=${varName}||{}).${prop}=`
-          );
-        }
-      }
-    },
     renderChunk(code, chunk, options) {
       // Ensure metaplex and vendor chunks have proper initialization
       // The "codes" error suggests something is trying to set a property on undefined
