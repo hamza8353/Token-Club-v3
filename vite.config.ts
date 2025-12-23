@@ -252,9 +252,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         format: 'es',
+        hoistTransitiveImports: true,
+        externalLiveBindings: false,
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            // Solana packages
+            // Solana packages - must load first
             if (
               id.includes('@solana/') ||
               id.includes('bn.js') ||
@@ -263,9 +265,19 @@ export default defineConfig({
             ) {
               return 'solana';
             }
-            // React
+            // React - must load early
             if (id.includes('react') || id.includes('react-dom')) {
               return 'react';
+            }
+            // Reown dependencies that might be shared - put in vendor first
+            // This ensures they're available before reown chunk loads
+            if (
+              id.includes('viem') ||
+              id.includes('@walletconnect') ||
+              id.includes('ox/') ||
+              id.includes('abitype')
+            ) {
+              return 'vendor';
             }
             // Other large packages
             if (id.includes('@metaplex-foundation/')) {
@@ -274,6 +286,7 @@ export default defineConfig({
             if (id.includes('@meteora-ag/')) {
               return 'meteora';
             }
+            // Reown packages - load after vendor
             if (id.includes('@reown/')) {
               return 'reown';
             }
