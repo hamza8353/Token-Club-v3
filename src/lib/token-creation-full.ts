@@ -87,23 +87,9 @@ export class FullTokenCreator {
     }
     
     // Add 0.105 SOL if advanced features are enabled
-    // ONLY charge if BOTH conditions are met:
-    // 1. Params are explicitly provided (not undefined, not null, not empty string)
-    // 2. Values are different from defaults ('tokenclub.fun' and 'tokenclub')
-    // If toggle is OFF, params will be undefined, so we don't charge
-    const hasAdvancedWebsite = params.creatorWebsite !== undefined && 
-                               params.creatorWebsite !== null && 
-                               typeof params.creatorWebsite === 'string' &&
-                               params.creatorWebsite.trim() !== '' &&
-                               params.creatorWebsite.trim() !== 'tokenclub.fun';
-    const hasAdvancedName = params.creatorName !== undefined && 
-                            params.creatorName !== null && 
-                            typeof params.creatorName === 'string' &&
-                            params.creatorName.trim() !== '' &&
-                            params.creatorName.trim() !== 'tokenclub';
-    
-    // Only charge if at least one advanced feature is actually being used (not defaults)
-    if (hasAdvancedWebsite || hasAdvancedName) {
+    // Simple check: if params are provided (not undefined), charge the fee
+    // If toggle is OFF, params will be undefined, so no charge
+    if (params.creatorWebsite !== undefined || params.creatorName !== undefined) {
       fee += PLATFORM_FEES.ADVANCED_FEATURES;
     }
     

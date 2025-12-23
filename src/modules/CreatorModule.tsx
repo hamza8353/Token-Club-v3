@@ -38,28 +38,10 @@ const CreatorModule = React.memo(() => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalResult, setModalResult] = useState<SuccessModalResult | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [enableAdvancedFeatures, setEnableAdvancedFeatures] = useState(false);
-  const [creatorWebsite, setCreatorWebsite] = useState('tokenclub.fun');
-  const [creatorName, setCreatorName] = useState('tokenclub');
+  const [creatorWebsite, setCreatorWebsite] = useState('');
+  const [creatorName, setCreatorName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Helper function to get advanced features params - ensures consistency
-  const getAdvancedFeaturesParams = (): { creatorWebsite?: string; creatorName?: string } => {
-    // If toggle is OFF, always return undefined (no charge)
-    if (enableAdvancedFeatures !== true) {
-      return { creatorWebsite: undefined, creatorName: undefined };
-    }
-    
-    // Toggle is ON - only return values if they differ from defaults
-    const trimmedWebsite = (creatorWebsite || '').trim();
-    const trimmedName = (creatorName || '').trim();
-    
-    return {
-      creatorWebsite: trimmedWebsite && trimmedWebsite !== 'tokenclub.fun' ? trimmedWebsite : undefined,
-      creatorName: trimmedName && trimmedName !== 'tokenclub' ? trimmedName : undefined,
-    };
-  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,9 +101,8 @@ const CreatorModule = React.memo(() => {
       // 0. Check balance before uploads (prevents wasted uploads)
       const balance = await connection.getBalance(payer);
       
-      // Get advanced features params using helper function
-      const advancedParams = getAdvancedFeaturesParams();
-      
+      // Advanced features: ONLY pass params if toggle is explicitly ON
+      // If toggle is OFF, pass undefined to ensure no charge
       const requiredBalance = creator.calculateCost({
         name,
         symbol,
@@ -133,8 +114,8 @@ const CreatorModule = React.memo(() => {
         website,
         twitter,
         telegram,
-        creatorWebsite: advancedParams.creatorWebsite,
-        creatorName: advancedParams.creatorName,
+        creatorWebsite: enableAdvancedFeatures ? (creatorWebsite?.trim() || undefined) : undefined,
+        creatorName: enableAdvancedFeatures ? (creatorName?.trim() || undefined) : undefined,
       }) * 1e9; // Convert SOL to lamports, add buffer for transaction fees
       const estimatedTxFee = 0.01 * 1e9; // ~0.01 SOL for transaction fees
       const totalRequired = requiredBalance + estimatedTxFee + 0.1 * 1e9; // Add 0.1 SOL buffer
@@ -194,7 +175,8 @@ const CreatorModule = React.memo(() => {
           twitter,
           telegram,
           imageUri,
-          ...getAdvancedFeaturesParams(),
+          creatorWebsite: enableAdvancedFeatures ? (creatorWebsite?.trim() || undefined) : undefined,
+          creatorName: enableAdvancedFeatures ? (creatorName?.trim() || undefined) : undefined,
         },
         payer,
         metadataUri
@@ -275,7 +257,8 @@ const CreatorModule = React.memo(() => {
           totalSupply: parseFloat(totalSupply.replace(/,/g, '')) || 0,
           revokeMintAuthority: revokeMint,
           revokeFreezeAuthority: revokeFreeze,
-          ...getAdvancedFeaturesParams(),
+          creatorWebsite: enableAdvancedFeatures ? (creatorWebsite?.trim() || undefined) : undefined,
+          creatorName: enableAdvancedFeatures ? (creatorName?.trim() || undefined) : undefined,
         });
         
         trackTokenCreationComplete({
@@ -351,9 +334,8 @@ const CreatorModule = React.memo(() => {
     let base = PLATFORM_FEES_DISPLAY.TOKEN_CREATION_BASE;
     if (revokeMint) base += PLATFORM_FEES_DISPLAY.REVOKE_MINT_AUTHORITY;
     if (revokeFreeze) base += PLATFORM_FEES_DISPLAY.REVOKE_FREEZE_AUTHORITY;
-    // Add advanced features fee only if toggle is enabled
-    // If toggle is OFF, we pass undefined, so no charge
-    if (enableAdvancedFeatures) {
+    // Add advanced features fee ONLY if toggle is explicitly ON
+    if (enableAdvancedFeatures === true) {
       base += PLATFORM_FEES_DISPLAY.ADVANCED_FEATURES;
     }
     return base.toFixed(2);
@@ -574,29 +556,40 @@ const CreatorModule = React.memo(() => {
             </div>
             
             {/* Advanced Features - Toggle */}
-            <div className="relative z-10">
+            <div className="relative z-10 mt-4">
               <Toggle
                 title="Advanced Features"
-                desc={`Creator information and additional metadata (+${PLATFORM_FEES_DISPLAY.ADVANCED_FEATURES} SOL)`}
+                desc={`Add custom creator information (+${PLATFORM_FEES_DISPLAY.ADVANCED_FEATURES} SOL)`}
                 value={enableAdvancedFeatures}
-                onChange={setEnableAdvancedFeatures}
+                onChange={(value) => {
+                  setEnableAdvancedFeatures(value);
+                  // Reset fields when toggle is turned off
+                  if (!value) {
+                    setCreatorWebsite('');
+                    setCreatorName('');
+                  }
+                }}
               />
               
               {enableAdvancedFeatures && (
                 <div className="mt-4 space-y-4 p-4 bg-[#0A0C0E] border border-white/5 rounded-xl">
                   <Input 
-                    label="Creator Website" 
-                    placeholder="https://creator-website.com" 
+                    label="Creator Website (Optional)" 
+                    placeholder="https://your-website.com" 
                     value={creatorWebsite}
                     onChange={(e) => setCreatorWebsite(e.target.value)}
                   />
                   
                   <Input 
-                    label="Creator Name" 
-                    placeholder="Enter creator name or organization" 
+                    label="Creator Name (Optional)" 
+                    placeholder="Your name or organization" 
                     value={creatorName}
                     onChange={(e) => setCreatorName(e.target.value)}
                   />
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    Note: Advanced features fee ({PLATFORM_FEES_DISPLAY.ADVANCED_FEATURES} SOL) will be charged when toggle is ON.
+                  </p>
                 </div>
               )}
             </div>
