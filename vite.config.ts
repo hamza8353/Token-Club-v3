@@ -272,11 +272,12 @@ export default defineConfig({
             }
             // Reown and its dependencies - put in vendor to avoid TDZ errors
             // The reown chunk has internal circular dependencies causing TDZ errors
+            // Catch all reown-related packages and their dependencies
             if (
               id.includes('@reown/') ||
               id.includes('viem') ||
               id.includes('@walletconnect') ||
-              id.includes('ox/') ||
+              id.includes('/ox/') ||
               id.includes('abitype')
             ) {
               return 'vendor';
