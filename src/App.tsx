@@ -9,6 +9,10 @@ import {
   MessageCircle,
   Github,
   FileText,
+  X,
+  Menu,
+  BookOpen,
+  GitCompare,
 } from 'lucide-react';
 // Menu is imported but not used - keeping for potential future use
 import { Logo } from './components/Logo';
@@ -60,6 +64,7 @@ const App: React.FC = () => {
   const [showComparison, setShowComparison] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
   const [blogSlug, setBlogSlug] = useState<string>('how-to-create-solana-meme-coin');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { isDevnet, toggleNetwork } = useNetwork();
 
   const tabToPath: Record<TabId, string> = {
@@ -430,6 +435,83 @@ const App: React.FC = () => {
 
       {/* --- MOBILE BOTTOM NAVIGATION --- */}
       <MobileBottomNav activeTab={activeTab} setActiveTab={(id) => navigate(tabToPath[id])} />
+
+      {/* --- MOBILE FLOATING MENU (Contact, GitHub, Comparison, Blog) --- */}
+      <div className="md:hidden fixed bottom-20 right-4 z-50">
+        {/* Menu Items */}
+        {showMobileMenu && (
+          <>
+            {/* Backdrop to close menu on outside click */}
+            <div 
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm -z-10"
+              onClick={() => setShowMobileMenu(false)}
+            />
+            <div className="absolute bottom-16 right-0 flex flex-col gap-2 mb-2 animate-in slide-in-from-bottom-4 duration-300">
+            {/* Comparison Button */}
+            <button
+              onClick={() => {
+                navigate('/comparison');
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#0A0C0E]/95 backdrop-blur-xl border border-white/10 hover:border-teal-500/50 transition-all shadow-lg hover:shadow-teal-500/20"
+            >
+              <GitCompare className="w-4 h-4 text-teal-400" />
+              <span className="text-sm font-medium text-white">Comparison</span>
+            </button>
+            
+            {/* Blog Button */}
+            <button
+              onClick={() => {
+                setBlogSlug('how-to-create-solana-meme-coin');
+                navigate('/blog/how-to-create-solana-meme-coin');
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#0A0C0E]/95 backdrop-blur-xl border border-white/10 hover:border-teal-500/50 transition-all shadow-lg hover:shadow-teal-500/20"
+            >
+              <BookOpen className="w-4 h-4 text-teal-400" />
+              <span className="text-sm font-medium text-white">Blog</span>
+            </button>
+            
+            {/* GitHub Link */}
+            <a
+              href="https://github.com/coinlaunch033/TokenClub-V3/blob/main/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setShowMobileMenu(false)}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#0A0C0E]/95 backdrop-blur-xl border border-white/10 hover:border-teal-500/50 transition-all shadow-lg hover:shadow-teal-500/20"
+            >
+              <Github className="w-4 h-4 text-teal-400" />
+              <span className="text-sm font-medium text-white">GitHub</span>
+            </a>
+            
+            {/* Contact Us Link */}
+            <a
+              href="https://t.me/tokenlab00"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setShowMobileMenu(false)}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#0A0C0E]/95 backdrop-blur-xl border border-white/10 hover:border-teal-500/50 transition-all shadow-lg hover:shadow-teal-500/20"
+            >
+              <MessageCircle className="w-4 h-4 text-teal-400" />
+              <span className="text-sm font-medium text-white">Contact Us</span>
+            </a>
+            </div>
+          </>
+        )}
+        
+        {/* Floating Action Button */}
+        <button
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          className="w-14 h-14 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 shadow-lg hover:shadow-teal-500/50 transition-all flex items-center justify-center text-white z-50 relative"
+          aria-label="Open menu"
+        >
+          {showMobileMenu ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <Menu className="w-6 h-6" />
+          )}
+        </button>
+      </div>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

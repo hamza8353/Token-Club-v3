@@ -32,7 +32,7 @@ export const Toggle = React.memo(({ title, desc, value, onChange }: ToggleProps)
         <div className="text-[10px] text-gray-600 mt-0.5">{desc}</div>
       </div>
       <div className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${isOn ? 'bg-teal-500' : 'bg-white/10'}`}>
-        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${isOn ? 'left-5.5' : 'left-0.5'}`} />
+        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${isOn ? 'left-[22px]' : 'left-0.5'}`} />
       </div>
     </div>
   );

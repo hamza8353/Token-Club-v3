@@ -86,10 +86,9 @@ export class FullTokenCreator {
       fee += PLATFORM_FEES.REVOKE_FREEZE_AUTHORITY;
     }
     
-    // Add 0.105 SOL if any advanced feature is used (only if different from defaults)
-    // Defaults are 'tokenclub.fun' and 'tokenclub', so only charge if different
-    const hasAdvancedFeatures = (params.creatorWebsite && params.creatorWebsite !== 'tokenclub.fun') || 
-                                 (params.creatorName && params.creatorName !== 'tokenclub');
+    // Add 0.105 SOL if advanced features are enabled (only charge if params are provided, meaning toggle is ON)
+    // If toggle is OFF, params will be undefined, so we don't charge
+    const hasAdvancedFeatures = params.creatorWebsite !== undefined || params.creatorName !== undefined;
     if (hasAdvancedFeatures) {
       fee += PLATFORM_FEES.ADVANCED_FEATURES;
     }

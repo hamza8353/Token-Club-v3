@@ -39,6 +39,7 @@ const CreatorModule = React.memo(() => {
   const [modalResult, setModalResult] = useState<SuccessModalResult | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [enableAdvancedFeatures, setEnableAdvancedFeatures] = useState(false);
   const [creatorWebsite, setCreatorWebsite] = useState('tokenclub.fun');
   const [creatorName, setCreatorName] = useState('tokenclub');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,8 +112,8 @@ const CreatorModule = React.memo(() => {
         website,
         twitter,
         telegram,
-        creatorWebsite: (creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
-        creatorName: (creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
+        creatorWebsite: (enableAdvancedFeatures && creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
+        creatorName: (enableAdvancedFeatures && creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
       }) * 1e9; // Convert SOL to lamports, add buffer for transaction fees
       const estimatedTxFee = 0.01 * 1e9; // ~0.01 SOL for transaction fees
       const totalRequired = requiredBalance + estimatedTxFee + 0.1 * 1e9; // Add 0.1 SOL buffer
@@ -172,8 +173,8 @@ const CreatorModule = React.memo(() => {
           twitter,
           telegram,
           imageUri,
-          creatorWebsite: (creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
-          creatorName: (creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
+          creatorWebsite: (enableAdvancedFeatures && creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
+          creatorName: (enableAdvancedFeatures && creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
         },
         payer,
         metadataUri
@@ -254,8 +255,8 @@ const CreatorModule = React.memo(() => {
           totalSupply: parseFloat(totalSupply.replace(/,/g, '')) || 0,
           revokeMintAuthority: revokeMint,
           revokeFreezeAuthority: revokeFreeze,
-          creatorWebsite: (creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
-          creatorName: (creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
+          creatorWebsite: (enableAdvancedFeatures && creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
+          creatorName: (enableAdvancedFeatures && creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
         });
         
         trackTokenCreationComplete({
@@ -264,7 +265,7 @@ const CreatorModule = React.memo(() => {
           tokenName: name,
           hasRevokeMint: revokeMint,
           hasRevokeFreeze: revokeFreeze,
-          hasAdvancedFeatures: Boolean((creatorWebsite && creatorWebsite !== 'tokenclub.fun') || (creatorName && creatorName !== 'tokenclub')),
+          hasAdvancedFeatures: Boolean(enableAdvancedFeatures),
           totalCost,
         });
 
@@ -331,11 +332,9 @@ const CreatorModule = React.memo(() => {
     let base = PLATFORM_FEES_DISPLAY.TOKEN_CREATION_BASE;
     if (revokeMint) base += PLATFORM_FEES_DISPLAY.REVOKE_MINT_AUTHORITY;
     if (revokeFreeze) base += PLATFORM_FEES_DISPLAY.REVOKE_FREEZE_AUTHORITY;
-    // Add advanced features fee only if user has changed from defaults
-    // Defaults are 'tokenclub.fun' and 'tokenclub', so only charge if different
-    const hasAdvancedFeatures = (creatorWebsite && creatorWebsite !== 'tokenclub.fun') || 
-                                 (creatorName && creatorName !== 'tokenclub');
-    if (hasAdvancedFeatures) {
+    // Add advanced features fee only if toggle is enabled
+    // If toggle is OFF, we pass undefined, so no charge
+    if (enableAdvancedFeatures) {
       base += PLATFORM_FEES_DISPLAY.ADVANCED_FEATURES;
     }
     return base.toFixed(2);
@@ -555,24 +554,16 @@ const CreatorModule = React.memo(() => {
               />
             </div>
             
-            {/* Advanced Features - Collapsible */}
+            {/* Advanced Features - Toggle */}
             <div className="relative z-10">
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full flex items-center justify-between p-4 bg-[#121212] border border-white/10 rounded-xl hover:border-blue-500/30 transition-all"
-              >
-                <div className="text-left">
-                  <h3 className="text-white font-semibold text-sm">Advanced Features</h3>
-                  <p className="text-xs text-gray-400 mt-1">Creator information and additional metadata ({PLATFORM_FEES_DISPLAY.ADVANCED_FEATURES} SOL)</p>
-                </div>
-                {showAdvanced ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
-                )}
-              </button>
+              <Toggle
+                title="Advanced Features"
+                desc={`Creator information and additional metadata (+${PLATFORM_FEES_DISPLAY.ADVANCED_FEATURES} SOL)`}
+                value={enableAdvancedFeatures}
+                onChange={setEnableAdvancedFeatures}
+              />
               
-              {showAdvanced && (
+              {enableAdvancedFeatures && (
                 <div className="mt-4 space-y-4 p-4 bg-[#0A0C0E] border border-white/5 rounded-xl">
                   <Input 
                     label="Creator Website" 
