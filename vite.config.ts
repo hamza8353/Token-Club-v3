@@ -75,13 +75,16 @@ const ensureMetaplexInit = () => {
             }
           );
           // Pattern: util.inspect or util.format (where util might be undefined)
-          // Replace with safe access: (util||globalThis.util||{}).inspect
+          // Replace ALL util.inspect/util.format accesses with safe access
+          // We ensure globalThis.util exists in initialization, so use that as fallback
           code = code.replace(
-            /util\s*\.\s*(inspect|format)\s*\(/g,
+            /\butil\s*\.\s*(inspect|format)\s*\(/g,
             (match, method) => {
               // Only replace if not already wrapped
-              if (!match.includes('globalThis') && !match.includes('||')) {
-                return `((typeof util!=='undefined'&&util?util:(typeof globalThis!=='undefined'&&globalThis.util?globalThis.util:{}))).${method}(`;
+              if (!match.includes('globalThis') && !match.includes('||') && !match.includes('typeof')) {
+                // Use a safe access that checks util first, then globalThis.util
+                // globalThis.util is guaranteed to exist from our initialization code
+                return `((typeof util!=='undefined'&&util&&util.${method}?util:globalThis.util)).${method}(`;
               }
               return match;
             }
@@ -118,19 +121,10 @@ const ensureMetaplexInit = () => {
           if(typeof Buffer==='undefined'&&typeof globalThis.Buffer!=='undefined'){
             var Buffer=globalThis.Buffer;
           }
-          // Polyfill util.inspect / util.format for Node.js compatibility
-          // Ensure util exists on globalThis, global, window, and as a module-level variable
-          if(typeof globalThis.util==='undefined'){
-            globalThis.util={};
-          }
-          if(typeof global!=='undefined'&&typeof global.util==='undefined'){
-            global.util=globalThis.util;
-          }
-          if(typeof window!=='undefined'&&typeof window.util==='undefined'){
-            window.util=globalThis.util;
-          }
-          // Create util object with inspect and format methods
-          const utilPolyfill={
+          // CRITICAL: Polyfill util.inspect / util.format for Node.js compatibility
+          // This MUST be available before any vendor/metaplex code runs
+          // Create util object with inspect and format methods FIRST
+          var utilPolyfill={
             inspect:function(obj,options){
               try{
                 return JSON.stringify(obj,null,2);
@@ -162,29 +156,23 @@ const ensureMetaplexInit = () => {
               }
             }
           };
-          // Assign to all possible locations
+          // Assign util to ALL possible locations to ensure it's accessible
+          // This ensures util.inspect works regardless of how code accesses it
           globalThis.util=utilPolyfill;
           if(typeof global!=='undefined'){global.util=utilPolyfill;}
           if(typeof window!=='undefined'){window.util=utilPolyfill;}
-          // Also ensure util is available as a module-level variable
-          // Some code might access 'util' directly, not through globalThis
-          try{
-            // Try to make util available in the current scope
-            // Note: In ES modules, we can't easily create module-level vars,
-            // but we can ensure globalThis.util exists and is accessible
-            if(typeof globalThis!=='undefined'){
-              // Make util accessible via require pattern if needed
-              if(typeof globalThis.require==='undefined'){
-                globalThis.require=function(module){
-                  if(module==='util'){
-                    return globalThis.util;
-                  }
-                  throw new Error('Cannot find module: '+module);
-                };
+          if(typeof self!=='undefined'){self.util=utilPolyfill;}
+          // Also create a module-level 'util' variable using var (function scope)
+          // This allows code like 'util.inspect()' to work
+          var util=utilPolyfill;
+          // Make util accessible via require pattern
+          if(typeof globalThis.require==='undefined'){
+            globalThis.require=function(module){
+              if(module==='util'){
+                return utilPolyfill;
               }
-            }
-          }catch(e){
-            // Silently fail
+              throw new Error('Cannot find module: '+module);
+            };
           }
           // Fix for "codes" property - ensure common error/status objects exist
           // This is often needed by HTTP libraries or error handling code
