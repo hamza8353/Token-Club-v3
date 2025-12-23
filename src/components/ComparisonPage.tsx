@@ -201,7 +201,7 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onBack }) => {
             <p className="text-gray-300 leading-relaxed">
               TokenClub operates as the most <strong className="text-teal-400">economical Solana token launchpad</strong> by 
               optimizing our smart contract infrastructure and reducing overhead costs. We pass these savings directly to our users, 
-              offering base token creation at just 0.1 SOL compared to Orion Tools' 0.3+ SOL pricing. Our streamlined platform 
+              offering base token creation at just 0.1 SOL compared to Orion Tools&apos; 0.3+ SOL pricing. Our streamlined platform 
               eliminates unnecessary fees while maintaining enterprise-grade security and functionality. Additionally, features like 
               vanity addresses and volume bot integration are included at no extra cost, making TokenClub the best value proposition 
               for Solana token creators in 2025.
@@ -214,11 +214,11 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onBack }) => {
               Is it safe to use a cheap Solana launchpad?
             </h3>
             <p className="text-gray-300 leading-relaxed">
-              Absolutely. TokenClub's lower pricing doesn't compromise security or functionality. We've built our platform on 
+              Absolutely. TokenClub&apos;s lower pricing doesn&apos;t compromise security or functionality. We&apos;ve built our platform on 
               proven Solana smart contracts and maintain a 4.9/5 Trust Pilot rating with 100+ successful token launches. Our 
               <strong className="text-teal-400"> economical Solana token launchpad</strong> uses the same underlying technology 
               as more expensive platforms, but with optimized fee structures. All transactions are on-chain and verifiable, 
-              and we provide full transparency with our platform fees stored on-chain within pool states. Lower cost doesn't 
+              and we provide full transparency with our platform fees stored on-chain within pool states. Lower cost doesn&apos;t 
               mean lower quality—it means better value through efficient engineering.
             </p>
           </div>
@@ -229,9 +229,9 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onBack }) => {
               How to migrate from Smithii to TokenClub?
             </h3>
             <p className="text-gray-300 leading-relaxed">
-              Migrating from Smithii to TokenClub is straightforward. If you're creating a new token, simply use TokenClub's 
-              platform—you'll save 0.2 SOL on base creation and 0.1 SOL on authority revocation. For existing tokens, you can 
-              use TokenClub's liquidity management, swap, and portfolio tools without any migration needed. Our platform is 
+              Migrating from Smithii to TokenClub is straightforward. If you&apos;re creating a new token, simply use TokenClub&apos;s 
+              platform—you&apos;ll save 0.2 SOL on base creation and 0.1 SOL on authority revocation. For existing tokens, you can 
+              use TokenClub&apos;s liquidity management, swap, and portfolio tools without any migration needed. Our platform is 
               compatible with all standard SPL tokens created on Solana. Simply connect your wallet and start using our 
               <strong className="text-teal-400"> economical Solana token launchpad</strong> features immediately. No data 
               export or complex setup required—just connect and go.

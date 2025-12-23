@@ -27,51 +27,54 @@ const extractApiKey = (value: string | undefined): string | null => {
 export const getRpcUrl = (network: Network): string => {
   if (network === 'devnet') {
     // Helius Devnet RPC - uses VITE_HELIUS_API_KEY_DEVNET
-    const heliusDevnetKey = extractApiKey(import.meta.env.VITE_HELIUS_API_KEY_DEVNET);
+    const heliusDevnetKey = extractApiKey(process.env.NEXT_PUBLIC_HELIUS_API_KEY_DEVNET || '');
     if (heliusDevnetKey) {
       return `https://devnet.helius-rpc.com/?api-key=${heliusDevnetKey}`;
     }
     // Fallback to generic Helius key if devnet-specific is not set
-    const heliusKey = extractApiKey(import.meta.env.VITE_HELIUS_API_KEY);
+    const heliusKey = extractApiKey(process.env.NEXT_PUBLIC_HELIUS_API_KEY || '');
     if (heliusKey) {
       return `https://devnet.helius-rpc.com/?api-key=${heliusKey}`;
     }
-    return import.meta.env.VITE_RPC_URL_DEVNET || 'https://api.devnet.solana.com';
+    return process.env.NEXT_PUBLIC_RPC_URL_DEVNET || 'https://api.devnet.solana.com';
   }
   // Helius Mainnet RPC - uses VITE_HELIUS_API_KEY_MAINNET
-  const heliusMainnetKey = extractApiKey(import.meta.env.VITE_HELIUS_API_KEY_MAINNET);
+  const heliusMainnetKey = extractApiKey(process.env.NEXT_PUBLIC_HELIUS_API_KEY_MAINNET || '');
   if (heliusMainnetKey) {
     return `https://mainnet.helius-rpc.com/?api-key=${heliusMainnetKey}`;
   }
   // Fallback to generic Helius key if mainnet-specific is not set
-  const heliusKey = extractApiKey(import.meta.env.VITE_HELIUS_API_KEY);
+  const heliusKey = extractApiKey(process.env.NEXT_PUBLIC_HELIUS_API_KEY || '');
   if (heliusKey) {
     return `https://mainnet.helius-rpc.com/?api-key=${heliusKey}`;
   }
-  return import.meta.env.VITE_RPC_URL_MAINNET || 'https://api.mainnet-beta.solana.com';
+  return process.env.NEXT_PUBLIC_RPC_URL_MAINNET || 'https://api.mainnet-beta.solana.com';
 };
 
 export const getJupiterApiUrl = (): string => {
   // Jupiter Ultra API base URL
   // Ultra API uses regular endpoints with x-api-key header
-  return import.meta.env.VITE_JUPITER_ULTRA_ENDPOINT || 'https://api.jup.ag';
+  return process.env.NEXT_PUBLIC_JUPITER_ULTRA_ENDPOINT || 'https://api.jup.ag';
 };
 
 export const getJupiterApiKey = (): string | undefined => {
-  return import.meta.env.VITE_JUPITER_API_KEY;
+  return process.env.NEXT_PUBLIC_JUPITER_API_KEY;
 };
 
 export const getDefaultNetwork = (): Network => {
+  if (typeof window === 'undefined') {
+    return (process.env.NEXT_PUBLIC_SOLANA_NETWORK as Network) || 'mainnet-beta';
+  }
   const stored = localStorage.getItem(NETWORK_STORAGE_KEY);
   if (stored === 'devnet' || stored === 'mainnet-beta') {
     return stored;
   }
-  return (import.meta.env.VITE_SOLANA_NETWORK as Network) || 'mainnet-beta';
+  return (process.env.NEXT_PUBLIC_SOLANA_NETWORK as Network) || 'mainnet-beta';
 };
 
 // Platform fee wallet from environment variable
 export const getPlatformFeeWallet = (): string => {
-  const envWallet = import.meta.env.VITE_PLATFORM_FEE_WALLET;
+  const envWallet = process.env.NEXT_PUBLIC_PLATFORM_FEE_WALLET;
   if (envWallet) {
     return envWallet.trim();
   }
@@ -100,7 +103,7 @@ export const PLATFORM_FEES = {
   LOCK_LIQUIDITY: 0.11, // SOL - Lock liquidity
   CLAIM_FEES: 0.05, // SOL - Claim earned fees
   LIQUIDITY_BURN: 0.11, // SOL - Burn liquidity
-  CLOSE_ACCOUNTS: 0.01, // SOL - Wallet cleanup
+  CLOSE_ACCOUNTS: 0.001, // SOL - Wallet cleanup (scan wallet fee)
   SWAP_PERCENTAGE: 0.011, // 1.1% of swap amount
 };
 
@@ -115,7 +118,8 @@ export const PLATFORM_FEES_DISPLAY = {
   LIQUIDITY_REMOVE: 0.1, // Show 0.1 SOL
   LOCK_LIQUIDITY: 0.1, // Show 0.1 SOL
   CLAIM_FEES: 0.05, // Show 0.05 SOL
-  CLOSE_ACCOUNTS: 0.01, // Show 0.01 SOL
+  LIQUIDITY_BURN: 0.1, // Show 0.1 SOL
+  CLOSE_ACCOUNTS: 0.001, // Show 0.001 SOL (scan wallet fee)
   SWAP_PERCENTAGE: 1.0, // Show 1% (actual fee is 1.1%)
 };
 

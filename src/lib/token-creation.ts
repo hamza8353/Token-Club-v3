@@ -176,7 +176,7 @@ export class TokenCreator {
    */
   async uploadImage(file: File): Promise<string | null> {
     try {
-      const pinataJwt = import.meta.env.VITE_PINATA_JWT;
+      const pinataJwt = process.env.NEXT_PUBLIC_PINATA_JWT || '';
       
       if (!pinataJwt) {
         throw new Error('Pinata JWT not configured');
@@ -212,7 +212,7 @@ export class TokenCreator {
    */
   async uploadMetadata(params: TokenCreationParams, imageUri?: string): Promise<string | null> {
     try {
-      const pinataJwt = import.meta.env.VITE_PINATA_JWT;
+      const pinataJwt = process.env.NEXT_PUBLIC_PINATA_JWT || '';
       
       if (!pinataJwt) return null;
 

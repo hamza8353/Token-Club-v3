@@ -10,9 +10,27 @@ interface NetworkContextType {
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
 
 export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [network, setNetwork] = useState<Network>(getDefaultNetwork());
+  // Initialize with a safe default, then sync with localStorage on mount
+  const [network, setNetwork] = useState<Network>('mainnet-beta');
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Sync with localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(NETWORK_STORAGE_KEY);
+      if (stored === 'devnet' || stored === 'mainnet-beta') {
+        setNetwork(stored);
+      } else {
+        const defaultNetwork = getDefaultNetwork();
+        setNetwork(defaultNetwork);
+      }
+      setIsHydrated(true);
+    }
+  }, []);
 
   const toggleNetwork = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    
     setNetwork((prev) => {
       const newNetwork = prev === 'mainnet-beta' ? 'devnet' : 'mainnet-beta';
       localStorage.setItem(NETWORK_STORAGE_KEY, newNetwork);

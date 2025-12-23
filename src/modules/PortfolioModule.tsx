@@ -63,7 +63,7 @@ const PortfolioModule = React.memo<PortfolioModuleProps>(({ onNavigateToLiquidit
 
   useEffect(() => {
     fetchPortfolio();
-  }, [isConnected, address]);
+  }, [isConnected, address, fetchPortfolio]);
 
   const formatBalance = (balance: number) => {
     if (balance >= 1000000) {
@@ -117,7 +117,7 @@ const PortfolioModule = React.memo<PortfolioModuleProps>(({ onNavigateToLiquidit
             <Wallet className="w-8 h-8 text-gray-500" />
           </div>
           <h3 className="text-lg font-bold text-white">No Tokens Found</h3>
-          <p className="text-gray-500 text-sm mt-2">You don't have any tokens in this wallet</p>
+          <p className="text-gray-500 text-sm mt-2">You don&apos;t have any tokens in this wallet</p>
         </div>
       ) : (
         <div className="bg-[#0f0f0f]/60 border border-white/10 rounded-3xl p-6 spotlight-card">

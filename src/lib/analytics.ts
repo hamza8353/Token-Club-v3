@@ -15,8 +15,13 @@ const GA_MEASUREMENT_ID = 'G-YQPF87DGYM';
  * Initialize Google Analytics
  */
 export const initAnalytics = (): void => {
+  // Only run in browser
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
   // Check if already initialized
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+  if (typeof window.gtag === 'function') {
     return;
   }
 
@@ -32,7 +37,7 @@ export const initAnalytics = (): void => {
   // Configure GA
   window.gtag('config', GA_MEASUREMENT_ID, {
     page_path: window.location.pathname,
-    page_title: document.title,
+    page_title: typeof document !== 'undefined' ? document.title : '',
   });
 };
 
@@ -40,11 +45,11 @@ export const initAnalytics = (): void => {
  * Track page view
  */
 export const trackPageView = (path: string, title?: string): void => {
-  if (!window.gtag) return;
+  if (typeof window === 'undefined' || !window.gtag) return;
 
   window.gtag('config', GA_MEASUREMENT_ID, {
     page_path: path,
-    page_title: title || document.title,
+    page_title: title || (typeof document !== 'undefined' ? document.title : ''),
   });
 };
 
@@ -60,7 +65,7 @@ export const trackEvent = (
     [key: string]: any;
   }
 ): void => {
-  if (!window.gtag) return;
+  if (typeof window === 'undefined' || !window.gtag) return;
 
   window.gtag('event', eventName, {
     ...eventParams,

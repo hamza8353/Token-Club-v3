@@ -20,7 +20,7 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 // Initialize Reown AppKit config
-const projectId = import.meta.env.VITE_REOWN_PROJECT_ID || '';
+const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || '';
 
 // Note: do not log env/config status in console (security requirement)
 
@@ -58,8 +58,8 @@ const createNetworkConfig = () => {
     metadata: {
       name: 'TokenClub',
       description: 'Create, swap, and manage tokens on Solana',
-      url: window.location.origin,
-      icons: [`${window.location.origin}/favicon.ico`],
+      url: typeof window !== 'undefined' ? window.location.origin : 'https://tokenclub.fun',
+      icons: typeof window !== 'undefined' ? [`${window.location.origin}/favicon.ico`] : ['https://tokenclub.fun/favicon.ico'],
     },
   };
 };

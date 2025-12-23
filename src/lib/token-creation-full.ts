@@ -45,8 +45,8 @@ const getCreateMetadataInstruction = async () => {
   }
   // Use dynamic import from the main package - it should export everything
   try {
-    const module = await import('@metaplex-foundation/mpl-token-metadata');
-    cachedCreateMetadataInstruction = (module as any).createCreateMetadataAccountV3Instruction;
+    const metaplexModule = await import('@metaplex-foundation/mpl-token-metadata');
+    cachedCreateMetadataInstruction = (metaplexModule as any).createCreateMetadataAccountV3Instruction;
     if (!cachedCreateMetadataInstruction) {
       // Fallback: try the generated path
       const generatedModule = await import('@metaplex-foundation/mpl-token-metadata/dist/src/generated/instructions/CreateMetadataAccountV3');
@@ -287,7 +287,7 @@ export class FullTokenCreator {
    */
   async uploadImage(file: File): Promise<string | null> {
     try {
-      const pinataJwt = import.meta.env.VITE_PINATA_JWT;
+      const pinataJwt = process.env.NEXT_PUBLIC_PINATA_JWT || '';
       
       if (!pinataJwt) {
         throw new Error('Pinata JWT not configured');
@@ -322,7 +322,7 @@ export class FullTokenCreator {
    */
   async uploadMetadata(params: TokenCreationParams, imageUri?: string): Promise<string | null> {
     try {
-      const pinataJwt = import.meta.env.VITE_PINATA_JWT;
+      const pinataJwt = process.env.NEXT_PUBLIC_PINATA_JWT || '';
       
       if (!pinataJwt) return null;
 

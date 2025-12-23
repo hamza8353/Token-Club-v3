@@ -18,8 +18,8 @@ import { WalletButton } from './components/WalletButton';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { Schema } from './components/Schema';
 import { SeoHead } from './components/SeoHead';
-import { ComparisonPage } from './pages/ComparisonPage';
-import { BlogPost } from './pages/BlogPost';
+import { ComparisonPage } from './components/ComparisonPage';
+import { BlogPost } from './components/BlogPost';
 import { useNetwork } from './contexts/NetworkContext';
 import { getBlogPost } from './content/blog';
 import { trackTabChange, trackPageView } from './lib/analytics';
@@ -60,7 +60,7 @@ const App: React.FC = () => {
   const [showComparison, setShowComparison] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
   const [blogSlug, setBlogSlug] = useState<string>('how-to-create-solana-meme-coin');
-  const { isDevnet } = useNetwork();
+  const { isDevnet, toggleNetwork } = useNetwork();
 
   const tabToPath: Record<TabId, string> = {
     create: '/',
@@ -73,7 +73,9 @@ const App: React.FC = () => {
   };
 
   const syncRouteFromLocation = useCallback(() => {
-    const pathname = window.location.pathname || '/';
+    // Use hash-based routing for client-side navigation
+    const hash = window.location.hash.replace('#', '') || '/';
+    const pathname = hash.startsWith('/') ? hash : '/' + hash;
 
     if (pathname === '/comparison') {
       setShowBlog(false);
@@ -112,8 +114,9 @@ const App: React.FC = () => {
 
   const navigate = useCallback(
     (path: string) => {
-      if (window.location.pathname !== path) {
-        window.history.pushState({}, '', path);
+      // Use hash-based routing for Next.js compatibility
+      if (window.location.hash !== `#${path}`) {
+        window.location.hash = path;
       }
       syncRouteFromLocation();
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -144,9 +147,14 @@ const App: React.FC = () => {
   // Sync initial URL + back/forward navigation
   useEffect(() => {
     syncRouteFromLocation();
+    const onHashChange = () => syncRouteFromLocation();
     const onPopState = () => syncRouteFromLocation();
+    window.addEventListener('hashchange', onHashChange);
     window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('popstate', onPopState);
+    };
   }, [syncRouteFromLocation]);
   
   // --- CURSOR SPOTLIGHT LOGIC (Optimized with throttling) ---
@@ -272,16 +280,20 @@ const App: React.FC = () => {
           {/* Branding Area */}
           <div className="p-8 pb-4 relative z-10">
             <Logo isNetworkSwitched={isDevnet} />
-            <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 w-fit">
+            <button 
+              onClick={toggleNetwork}
+              className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 w-fit hover:bg-white/10 transition-colors cursor-pointer"
+              title="Click to switch network (or press Ctrl+Shift+E)"
+            >
                 <div className={`w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_8px] ${
                   isDevnet 
-                    ? 'bg-gray-400 shadow-gray-400' 
+                    ? 'bg-white shadow-white' 
                     : 'bg-teal-400 shadow-[0_0_8px_#2dd4bf]'
                 }`}></div>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                   Mainnet
                 </span>
-            </div>
+            </button>
           </div>
 
           {/* Navigation Items */}
