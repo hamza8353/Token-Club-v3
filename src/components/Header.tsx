@@ -18,6 +18,9 @@ export const Header = React.memo(({ activeTab }: { activeTab: TabId }) => {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight mb-2">{h1}</h1>
       <p className="text-blue-200/60 text-sm md:text-lg">{p}</p>
+      {activeTab === 'liquidity' && (
+        <p className="text-gray-400/60 text-xs md:text-sm mt-2">POWERED BY METEORA</p>
+      )}
     </div>
   );
 });
