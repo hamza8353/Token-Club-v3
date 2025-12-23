@@ -1125,17 +1125,21 @@ const LiquidityModule = React.memo(() => {
                       <button
                         type="button"
                         onClick={() => {
-                          if (tokenSupply && tokenSupply > 0) {
+                          if (tokenSupply !== null && tokenSupply > 0) {
                             // Use total supply for percentage calculation
                             const amount = (tokenSupply * 50) / 100;
-                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
+                            // Format as string directly to preserve precision
+                            const amountStr = amount.toString();
+                            const cleaned = amountStr.replace(/\.?0+$/, '');
+                            setBaseAmount(cleaned);
                           } else if (tokenBalanceInit > 0) {
                             // Fallback to balance if supply not available
                             const amount = (tokenBalanceInit * 50) / 100;
-                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
+                            const formatted = amount.toFixed(tokenDecimals || 9);
+                            setBaseAmount(formatNumberWithoutTrailingZeros(formatted));
                           }
                         }}
-                        disabled={!tokenSupply && tokenBalanceInit === 0}
+                        disabled={tokenSupply === null || tokenSupply === 0}
                         className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
                       >
                         50%
@@ -1143,26 +1147,50 @@ const LiquidityModule = React.memo(() => {
                       <button
                         type="button"
                         onClick={() => {
-                          if (tokenSupply && tokenSupply > 0) {
+                          // Debug logging
+                          console.log('[100% Button] State:', {
+                            tokenSupply,
+                            tokenBalanceInit,
+                            tokenDecimals,
+                            hasSupply: tokenSupply !== null && tokenSupply > 0
+                          });
+                          
+                          // CRITICAL: Always prefer tokenSupply if available
+                          if (tokenSupply !== null && tokenSupply > 0) {
                             // Use total supply for 100% calculation
+                            // Convert to string directly to preserve full precision
                             const amount = tokenSupply;
-                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
-                          } else if (tokenBalanceInit > 0) {
-                            // Fallback to balance if supply not available
-                            const amount = tokenBalanceInit;
-                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
+                            // Format with decimals, then remove trailing zeros
+                            const formatted = amount.toFixed(tokenDecimals || 9);
+                            // Remove trailing zeros but keep the number intact
+                            const cleaned = formatted.replace(/\.?0+$/, '');
+                            console.log('[100% Button] Using supply:', { 
+                              tokenSupply, 
+                              amount, 
+                              formatted, 
+                              cleaned,
+                              tokenDecimals 
+                            });
+                            setBaseAmount(cleaned);
+                          } else {
+                            console.warn('[100% Button] Supply not available');
+                            alert('Token supply not loaded yet. Please wait for supply to load before clicking 100%.');
                           }
                         }}
-                        disabled={!tokenSupply && tokenBalanceInit === 0}
+                        disabled={tokenSupply === null || tokenSupply === 0}
                         className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
                       >
                         100%
                       </button>
-                      {tokenBalanceInit > 0 && (
+                      {tokenSupply !== null && tokenSupply > 0 ? (
+                        <span className="text-xs text-gray-500">
+                          Supply: {formatNumberWithCommas(tokenSupply)}
+                        </span>
+                      ) : tokenBalanceInit > 0 ? (
                         <span className="text-xs text-gray-500">
                           Balance: {formatNumberWithoutTrailingZeros(tokenBalanceInit.toFixed(tokenDecimals || 9))}
                         </span>
-                      )}
+                      ) : null}
                     </>
                   ) : null}
                 </div>
