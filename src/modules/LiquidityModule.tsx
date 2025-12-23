@@ -17,7 +17,7 @@ import { savePoolData, getLastCreatedPool, getPoolsByBaseToken, getPoolData } fr
 import SuccessModal, { SuccessModalResult } from '../components/ui/SuccessModal';
 import { fetchWalletPools, WalletPool } from '../lib/fetch-wallet-pools';
 import { formatNumberWithoutTrailingZeros, formatNumberWithCommas } from '../lib/number-format';
-import { PLATFORM_FEES_DISPLAY } from '../lib/config';
+import { PLATFORM_FEES_DISPLAY, PLATFORM_FEES } from '../lib/config';
 import { getTokenMemory, TokenData } from '../lib/token-memory';
 import { 
   trackLiquidityPoolInitialize, 
@@ -747,6 +747,18 @@ const LiquidityModule = React.memo(() => {
       }
 
       setCurrentStep(2);
+      
+      // Check balance before proceeding
+      const balance = await connection.getBalance(payer);
+      const balanceSol = balance / LAMPORTS_PER_SOL;
+      const requiredFee = PLATFORM_FEES.LIQUIDITY_REMOVE;
+      const bufferFee = 0.05; // Buffer for transaction fees
+      const requiredSol = requiredFee + bufferFee;
+      
+      if (balanceSol < requiredSol) {
+        throw new Error(`Insufficient balance. Required: ${requiredSol} SOL (Fee: ${requiredFee} SOL + Buffer: ${bufferFee} SOL), Current: ${balanceSol.toFixed(4)} SOL`);
+      }
+
       // Remove liquidity using Meteora SDK
       const instructions = await liquidityManager.removeLiquidity(
         poolIdRemove,
@@ -773,48 +785,58 @@ const LiquidityModule = React.memo(() => {
       setCurrentStep(4);
       const signature = await signAndSendTransaction(transaction);
       
-      if (signature) {
-        const explorerUrl = network === 'devnet'
-          ? `https://solscan.io/tx/${signature}?cluster=devnet`
-          : `https://solscan.io/tx/${signature}`;
-
-        // Track liquidity remove
-        trackLiquidityRemove({
-          poolAddress: poolIdRemove,
-          percentage: removePercentage,
-        });
-
-        setModalStatus('success');
-        setModalResult({
-          title: 'Liquidity Removed',
-          subtitle: `Successfully removed ${removePercentage}% of liquidity from the pool!`,
-          items: poolIdRemove ? [
-            {
-              label: 'Pool Address',
-              value: poolIdRemove,
-              copyValue: poolIdRemove,
-              explorerUrl: `https://solscan.io/account/${poolIdRemove}${network === 'devnet' ? '?cluster=devnet' : ''}`,
-            },
-            {
-              label: 'Transaction Signature',
-              value: signature,
-              copyValue: signature,
-              explorerUrl,
-            },
-          ] : [
-            {
-              label: 'Transaction Signature',
-              value: signature,
-              copyValue: signature,
-              explorerUrl,
-            },
-          ],
-          footer: 'Tokens will appear in your wallet shortly.',
-        });
-
-        // Reset form
-        setRemovePercentage(50);
+      if (!signature) {
+        throw new Error('Transaction signature not received');
       }
+
+      // Wait for transaction confirmation
+      setCurrentStep(5);
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
+
+      const explorerUrl = network === 'devnet'
+        ? `https://solscan.io/tx/${signature}?cluster=devnet`
+        : `https://solscan.io/tx/${signature}`;
+
+      // Track liquidity remove
+      trackLiquidityRemove({
+        poolAddress: poolIdRemove,
+        percentage: removePercentage,
+      });
+
+      setModalStatus('success');
+      setModalResult({
+        title: 'Liquidity Removed',
+        subtitle: `Successfully removed ${removePercentage}% of liquidity from the pool!`,
+        items: poolIdRemove ? [
+          {
+            label: 'Pool Address',
+            value: poolIdRemove,
+            copyValue: poolIdRemove,
+            explorerUrl: `https://solscan.io/account/${poolIdRemove}${network === 'devnet' ? '?cluster=devnet' : ''}`,
+          },
+          {
+            label: 'Transaction Signature',
+            value: signature,
+            copyValue: signature,
+            explorerUrl,
+          },
+        ] : [
+          {
+            label: 'Transaction Signature',
+            value: signature,
+            copyValue: signature,
+            explorerUrl,
+          },
+        ],
+        footer: 'Tokens will appear in your wallet shortly.',
+      });
+
+      // Reset form
+      setRemovePercentage(50);
     } catch (error: any) {
       console.error('Remove liquidity error:', error);
       setModalStatus('error');
