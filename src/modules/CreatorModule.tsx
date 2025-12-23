@@ -101,9 +101,39 @@ const CreatorModule = React.memo(() => {
       // 0. Check balance before uploads (prevents wasted uploads)
       const balance = await connection.getBalance(payer);
       
-      // Advanced features: ONLY pass params if toggle is explicitly ON
-      // If toggle is OFF, pass undefined to ensure no charge
-      const requiredBalance = creator.calculateCost({
+      // CRITICAL: Advanced features params - ONLY pass if toggle is EXPLICITLY ON
+      // If toggle is OFF (false, undefined, null, etc.), ALWAYS pass undefined
+      let advancedWebsite: string | undefined = undefined;
+      let advancedName: string | undefined = undefined;
+      
+      // Only set values if toggle is STRICTLY true AND values exist
+      if (enableAdvancedFeatures === true) {
+        const trimmedWebsite = creatorWebsite?.trim();
+        const trimmedName = creatorName?.trim();
+        
+        if (trimmedWebsite && trimmedWebsite.length > 0) {
+          advancedWebsite = trimmedWebsite;
+        }
+        if (trimmedName && trimmedName.length > 0) {
+          advancedName = trimmedName;
+        }
+      }
+      // If toggle is NOT true, both remain undefined (no charge)
+      
+      // Debug logging (remove in production if needed)
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        console.log('[handleCreateToken] Advanced features state:', {
+          enableAdvancedFeatures,
+          toggleIsTrue: enableAdvancedFeatures === true,
+          creatorWebsite,
+          creatorName,
+          advancedWebsite,
+          advancedName,
+          willPassParams: advancedWebsite !== undefined || advancedName !== undefined
+        });
+      }
+      
+      const baseCost = creator.calculateCost({
         name,
         symbol,
         description,
@@ -114,16 +144,30 @@ const CreatorModule = React.memo(() => {
         website,
         twitter,
         telegram,
-        creatorWebsite: enableAdvancedFeatures === true && creatorWebsite?.trim() ? creatorWebsite.trim() : undefined,
-        creatorName: enableAdvancedFeatures === true && creatorName?.trim() ? creatorName.trim() : undefined,
-      }) * 1e9; // Convert SOL to lamports, add buffer for transaction fees
+        creatorWebsite: advancedWebsite,
+        creatorName: advancedName,
+      });
+      
+      // Debug logging for cost breakdown
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        console.log('[handleCreateToken] Cost breakdown:', {
+          baseCost,
+          baseCostSOL: baseCost.toFixed(3),
+          estimatedTxFee: 0.01,
+          buffer: 0.05,
+          totalRequired: (baseCost + 0.01 + 0.05).toFixed(3)
+        });
+      }
+      
+      const requiredBalance = baseCost * 1e9; // Convert SOL to lamports
       const estimatedTxFee = 0.01 * 1e9; // ~0.01 SOL for transaction fees
-      const totalRequired = requiredBalance + estimatedTxFee + 0.1 * 1e9; // Add 0.1 SOL buffer
+      const totalRequired = requiredBalance + estimatedTxFee + 0.05 * 1e9; // Add 0.05 SOL buffer
 
       if (balance < totalRequired) {
         const requiredSol = (totalRequired / 1e9).toFixed(3);
         const currentSol = (balance / 1e9).toFixed(3);
-        throw new Error(`Insufficient balance. Required: ${requiredSol} SOL, Current: ${currentSol} SOL`);
+        const baseCostSol = baseCost.toFixed(3);
+        throw new Error(`Insufficient balance. Required: ${requiredSol} SOL (Base: ${baseCostSol} SOL + Fees: 0.01 SOL + Buffer: 0.05 SOL), Current: ${currentSol} SOL`);
       }
 
       // 1. Upload image if provided
@@ -175,8 +219,8 @@ const CreatorModule = React.memo(() => {
           twitter,
           telegram,
           imageUri,
-          creatorWebsite: enableAdvancedFeatures ? (creatorWebsite?.trim() || undefined) : undefined,
-          creatorName: enableAdvancedFeatures ? (creatorName?.trim() || undefined) : undefined,
+          creatorWebsite: enableAdvancedFeatures === true && creatorWebsite?.trim() && creatorWebsite.trim().length > 0 ? creatorWebsite.trim() : undefined,
+          creatorName: enableAdvancedFeatures === true && creatorName?.trim() && creatorName.trim().length > 0 ? creatorName.trim() : undefined,
         },
         payer,
         metadataUri
@@ -257,8 +301,8 @@ const CreatorModule = React.memo(() => {
           totalSupply: parseFloat(totalSupply.replace(/,/g, '')) || 0,
           revokeMintAuthority: revokeMint,
           revokeFreezeAuthority: revokeFreeze,
-          creatorWebsite: enableAdvancedFeatures ? (creatorWebsite?.trim() || undefined) : undefined,
-          creatorName: enableAdvancedFeatures ? (creatorName?.trim() || undefined) : undefined,
+          creatorWebsite: enableAdvancedFeatures === true && creatorWebsite?.trim() && creatorWebsite.trim().length > 0 ? creatorWebsite.trim() : undefined,
+          creatorName: enableAdvancedFeatures === true && creatorName?.trim() && creatorName.trim().length > 0 ? creatorName.trim() : undefined,
         });
         
         trackTokenCreationComplete({

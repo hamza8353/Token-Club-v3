@@ -96,7 +96,7 @@ export const PLATFORM_FEES = {
   TOKEN_CREATION_BASE: 0.11, // SOL - Basic token creation
   REVOKE_MINT_AUTHORITY: 0.11, // SOL - Mint authority revocation
   REVOKE_FREEZE_AUTHORITY: 0.105, // SOL - Freeze authority revocation
-  ADVANCED_FEATURES: 0.105, // SOL - Advanced features (creator website, name)
+  ADVANCED_FEATURES: 0.06, // SOL - Advanced features (creator website, name)
   LIQUIDITY_POOL_CREATION: 0.17, // SOL - Initialize pool
   LIQUIDITY_ADD: 0.05, // SOL - Add liquidity
   LIQUIDITY_REMOVE: 0.11, // SOL - Remove liquidity
@@ -112,7 +112,7 @@ export const PLATFORM_FEES_DISPLAY = {
   TOKEN_CREATION_BASE: 0.1, // Show 0.1 SOL
   REVOKE_MINT_AUTHORITY: 0.1, // Show 0.1 SOL
   REVOKE_FREEZE_AUTHORITY: 0.1, // Show 0.1 SOL
-  ADVANCED_FEATURES: 0.1, // Show 0.1 SOL
+  ADVANCED_FEATURES: 0.05, // Show 0.05 SOL
   LIQUIDITY_POOL_CREATION: 0.15, // Show 0.15 SOL
   LIQUIDITY_ADD: 0.05, // Show 0.05 SOL
   LIQUIDITY_REMOVE: 0.1, // Show 0.1 SOL

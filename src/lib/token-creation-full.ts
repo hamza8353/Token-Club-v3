@@ -86,22 +86,41 @@ export class FullTokenCreator {
       fee += PLATFORM_FEES.REVOKE_FREEZE_AUTHORITY;
     }
     
-    // Add 0.105 SOL if advanced features are enabled
-    // ONLY charge if params are explicitly provided AND are non-empty strings
-    // If toggle is OFF, params will be undefined, so no charge
-    // Also check for empty strings to be safe
-    const hasAdvancedWebsite = params.creatorWebsite !== undefined && 
-                               params.creatorWebsite !== null && 
-                               typeof params.creatorWebsite === 'string' &&
-                               params.creatorWebsite.trim() !== '';
-    const hasAdvancedName = params.creatorName !== undefined && 
-                            params.creatorName !== null && 
-                            typeof params.creatorName === 'string' &&
-                            params.creatorName.trim() !== '';
+    // Add 0.06 SOL if advanced features are enabled
+    // CRITICAL: ONLY charge if params are explicitly provided AND are non-empty strings
+    // If toggle is OFF, params MUST be undefined, so no charge
+    // Double-check everything to prevent false positives
     
-    // Only charge if at least one valid advanced feature param exists
+    // Check website param - must be defined, not null, a string, and non-empty
+    const hasAdvancedWebsite = params.creatorWebsite !== undefined &&
+                               params.creatorWebsite !== null &&
+                               params.creatorWebsite !== '' &&
+                               typeof params.creatorWebsite === 'string' && 
+                               params.creatorWebsite.trim().length > 0;
+    
+    // Check name param - must be defined, not null, a string, and non-empty
+    const hasAdvancedName = params.creatorName !== undefined &&
+                            params.creatorName !== null &&
+                            params.creatorName !== '' &&
+                            typeof params.creatorName === 'string' && 
+                            params.creatorName.trim().length > 0;
+    
+    // ONLY charge if at least one valid non-empty string exists
+    // If params are undefined, null, empty string, or any falsy value, do NOT charge
     if (hasAdvancedWebsite || hasAdvancedName) {
       fee += PLATFORM_FEES.ADVANCED_FEATURES;
+    }
+    
+    // Debug logging (remove in production if needed)
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      console.log('[calculateCost] Advanced features check:', {
+        creatorWebsite: params.creatorWebsite,
+        creatorName: params.creatorName,
+        hasAdvancedWebsite,
+        hasAdvancedName,
+        willCharge: hasAdvancedWebsite || hasAdvancedName,
+        fee: fee
+      });
     }
     
     return fee;

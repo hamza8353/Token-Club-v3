@@ -14,9 +14,11 @@ export default function Document() {
         <meta name="format-detection" content="telephone=no" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="TokenClub" />
-        <meta name="theme-color" content="#0A0C0E" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="msapplication-TileColor" content="#000000" />
+        <meta name="msapplication-navbutton-color" content="#000000" />
         
         {/* PWA Manifest */}
         <link rel="manifest" href="/manifest.webmanifest" />
