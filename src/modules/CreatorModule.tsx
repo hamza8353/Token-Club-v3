@@ -44,6 +44,23 @@ const CreatorModule = React.memo(() => {
   const [creatorName, setCreatorName] = useState('tokenclub');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to get advanced features params - ensures consistency
+  const getAdvancedFeaturesParams = (): { creatorWebsite?: string; creatorName?: string } => {
+    // If toggle is OFF, always return undefined (no charge)
+    if (enableAdvancedFeatures !== true) {
+      return { creatorWebsite: undefined, creatorName: undefined };
+    }
+    
+    // Toggle is ON - only return values if they differ from defaults
+    const trimmedWebsite = (creatorWebsite || '').trim();
+    const trimmedName = (creatorName || '').trim();
+    
+    return {
+      creatorWebsite: trimmedWebsite && trimmedWebsite !== 'tokenclub.fun' ? trimmedWebsite : undefined,
+      creatorName: trimmedName && trimmedName !== 'tokenclub' ? trimmedName : undefined,
+    };
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -102,25 +119,8 @@ const CreatorModule = React.memo(() => {
       // 0. Check balance before uploads (prevents wasted uploads)
       const balance = await connection.getBalance(payer);
       
-      // Determine advanced features params - ONLY pass if toggle is ON
-      // If toggle is OFF, we MUST pass undefined to avoid charging
-      let advancedWebsite: string | undefined = undefined;
-      let advancedName: string | undefined = undefined;
-      
-      // Explicitly check toggle state - if false, skip everything
-      if (enableAdvancedFeatures === true) {
-        // Only pass values if they're different from defaults
-        const trimmedWebsite = creatorWebsite?.trim() || '';
-        const trimmedName = creatorName?.trim() || '';
-        
-        if (trimmedWebsite && trimmedWebsite !== 'tokenclub.fun') {
-          advancedWebsite = trimmedWebsite;
-        }
-        if (trimmedName && trimmedName !== 'tokenclub') {
-          advancedName = trimmedName;
-        }
-      }
-      // If enableAdvancedFeatures is false, both remain undefined (no charge)
+      // Get advanced features params using helper function
+      const advancedParams = getAdvancedFeaturesParams();
       
       const requiredBalance = creator.calculateCost({
         name,
@@ -133,8 +133,8 @@ const CreatorModule = React.memo(() => {
         website,
         twitter,
         telegram,
-        creatorWebsite: advancedWebsite,
-        creatorName: advancedName,
+        creatorWebsite: advancedParams.creatorWebsite,
+        creatorName: advancedParams.creatorName,
       }) * 1e9; // Convert SOL to lamports, add buffer for transaction fees
       const estimatedTxFee = 0.01 * 1e9; // ~0.01 SOL for transaction fees
       const totalRequired = requiredBalance + estimatedTxFee + 0.1 * 1e9; // Add 0.1 SOL buffer
@@ -194,8 +194,7 @@ const CreatorModule = React.memo(() => {
           twitter,
           telegram,
           imageUri,
-          creatorWebsite: enableAdvancedFeatures && creatorWebsite && creatorWebsite.trim() !== 'tokenclub.fun' ? creatorWebsite.trim() : undefined,
-          creatorName: enableAdvancedFeatures && creatorName && creatorName.trim() !== 'tokenclub' ? creatorName.trim() : undefined,
+          ...getAdvancedFeaturesParams(),
         },
         payer,
         metadataUri
@@ -276,8 +275,7 @@ const CreatorModule = React.memo(() => {
           totalSupply: parseFloat(totalSupply.replace(/,/g, '')) || 0,
           revokeMintAuthority: revokeMint,
           revokeFreezeAuthority: revokeFreeze,
-          creatorWebsite: enableAdvancedFeatures && creatorWebsite && creatorWebsite.trim() !== 'tokenclub.fun' ? creatorWebsite.trim() : undefined,
-          creatorName: enableAdvancedFeatures && creatorName && creatorName.trim() !== 'tokenclub' ? creatorName.trim() : undefined,
+          ...getAdvancedFeaturesParams(),
         });
         
         trackTokenCreationComplete({
