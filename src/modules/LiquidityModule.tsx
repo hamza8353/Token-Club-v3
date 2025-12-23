@@ -1120,17 +1120,22 @@ const LiquidityModule = React.memo(() => {
                   ) : baseTokenMint ? (
                     <span className="text-xs text-gray-500">Enter a valid token mint address to see supply</span>
                   ) : null}
-                  {isConnected && tokenBalanceInit > 0 && (
+                  {(isConnected && tokenSupply && tokenSupply > 0) || (isConnected && tokenBalanceInit > 0) ? (
                     <>
                       <button
                         type="button"
                         onClick={() => {
-                          if (tokenBalanceInit > 0) {
+                          if (tokenSupply && tokenSupply > 0) {
+                            // Use total supply for percentage calculation
+                            const amount = (tokenSupply * 50) / 100;
+                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
+                          } else if (tokenBalanceInit > 0) {
+                            // Fallback to balance if supply not available
                             const amount = (tokenBalanceInit * 50) / 100;
                             setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
                           }
                         }}
-                        disabled={tokenBalanceInit === 0}
+                        disabled={!tokenSupply && tokenBalanceInit === 0}
                         className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
                       >
                         50%
@@ -1138,21 +1143,28 @@ const LiquidityModule = React.memo(() => {
                       <button
                         type="button"
                         onClick={() => {
-                          if (tokenBalanceInit > 0) {
+                          if (tokenSupply && tokenSupply > 0) {
+                            // Use total supply for 100% calculation
+                            const amount = tokenSupply;
+                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
+                          } else if (tokenBalanceInit > 0) {
+                            // Fallback to balance if supply not available
                             const amount = tokenBalanceInit;
                             setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
                           }
                         }}
-                        disabled={tokenBalanceInit === 0}
+                        disabled={!tokenSupply && tokenBalanceInit === 0}
                         className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
                       >
                         100%
                       </button>
-                      <span className="text-xs text-gray-500">
-                        Balance: {formatNumberWithoutTrailingZeros(tokenBalanceInit.toFixed(tokenDecimals || 9))}
-                      </span>
+                      {tokenBalanceInit > 0 && (
+                        <span className="text-xs text-gray-500">
+                          Balance: {formatNumberWithoutTrailingZeros(tokenBalanceInit.toFixed(tokenDecimals || 9))}
+                        </span>
+                      )}
                     </>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div>
