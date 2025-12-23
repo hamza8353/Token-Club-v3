@@ -114,8 +114,8 @@ const CreatorModule = React.memo(() => {
         website,
         twitter,
         telegram,
-        creatorWebsite: enableAdvancedFeatures ? (creatorWebsite?.trim() || undefined) : undefined,
-        creatorName: enableAdvancedFeatures ? (creatorName?.trim() || undefined) : undefined,
+        creatorWebsite: enableAdvancedFeatures === true && creatorWebsite?.trim() ? creatorWebsite.trim() : undefined,
+        creatorName: enableAdvancedFeatures === true && creatorName?.trim() ? creatorName.trim() : undefined,
       }) * 1e9; // Convert SOL to lamports, add buffer for transaction fees
       const estimatedTxFee = 0.01 * 1e9; // ~0.01 SOL for transaction fees
       const totalRequired = requiredBalance + estimatedTxFee + 0.1 * 1e9; // Add 0.1 SOL buffer

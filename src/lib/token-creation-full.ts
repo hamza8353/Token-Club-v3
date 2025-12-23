@@ -87,9 +87,20 @@ export class FullTokenCreator {
     }
     
     // Add 0.105 SOL if advanced features are enabled
-    // Simple check: if params are provided (not undefined), charge the fee
+    // ONLY charge if params are explicitly provided AND are non-empty strings
     // If toggle is OFF, params will be undefined, so no charge
-    if (params.creatorWebsite !== undefined || params.creatorName !== undefined) {
+    // Also check for empty strings to be safe
+    const hasAdvancedWebsite = params.creatorWebsite !== undefined && 
+                               params.creatorWebsite !== null && 
+                               typeof params.creatorWebsite === 'string' &&
+                               params.creatorWebsite.trim() !== '';
+    const hasAdvancedName = params.creatorName !== undefined && 
+                            params.creatorName !== null && 
+                            typeof params.creatorName === 'string' &&
+                            params.creatorName.trim() !== '';
+    
+    // Only charge if at least one valid advanced feature param exists
+    if (hasAdvancedWebsite || hasAdvancedName) {
       fee += PLATFORM_FEES.ADVANCED_FEATURES;
     }
     
