@@ -101,6 +101,27 @@ const CreatorModule = React.memo(() => {
 
       // 0. Check balance before uploads (prevents wasted uploads)
       const balance = await connection.getBalance(payer);
+      
+      // Determine advanced features params - ONLY pass if toggle is ON
+      // If toggle is OFF, we MUST pass undefined to avoid charging
+      let advancedWebsite: string | undefined = undefined;
+      let advancedName: string | undefined = undefined;
+      
+      // Explicitly check toggle state - if false, skip everything
+      if (enableAdvancedFeatures === true) {
+        // Only pass values if they're different from defaults
+        const trimmedWebsite = creatorWebsite?.trim() || '';
+        const trimmedName = creatorName?.trim() || '';
+        
+        if (trimmedWebsite && trimmedWebsite !== 'tokenclub.fun') {
+          advancedWebsite = trimmedWebsite;
+        }
+        if (trimmedName && trimmedName !== 'tokenclub') {
+          advancedName = trimmedName;
+        }
+      }
+      // If enableAdvancedFeatures is false, both remain undefined (no charge)
+      
       const requiredBalance = creator.calculateCost({
         name,
         symbol,
@@ -112,8 +133,8 @@ const CreatorModule = React.memo(() => {
         website,
         twitter,
         telegram,
-        creatorWebsite: (enableAdvancedFeatures && creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
-        creatorName: (enableAdvancedFeatures && creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
+        creatorWebsite: advancedWebsite,
+        creatorName: advancedName,
       }) * 1e9; // Convert SOL to lamports, add buffer for transaction fees
       const estimatedTxFee = 0.01 * 1e9; // ~0.01 SOL for transaction fees
       const totalRequired = requiredBalance + estimatedTxFee + 0.1 * 1e9; // Add 0.1 SOL buffer
@@ -173,8 +194,8 @@ const CreatorModule = React.memo(() => {
           twitter,
           telegram,
           imageUri,
-          creatorWebsite: (enableAdvancedFeatures && creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
-          creatorName: (enableAdvancedFeatures && creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
+          creatorWebsite: enableAdvancedFeatures && creatorWebsite && creatorWebsite.trim() !== 'tokenclub.fun' ? creatorWebsite.trim() : undefined,
+          creatorName: enableAdvancedFeatures && creatorName && creatorName.trim() !== 'tokenclub' ? creatorName.trim() : undefined,
         },
         payer,
         metadataUri
@@ -255,8 +276,8 @@ const CreatorModule = React.memo(() => {
           totalSupply: parseFloat(totalSupply.replace(/,/g, '')) || 0,
           revokeMintAuthority: revokeMint,
           revokeFreezeAuthority: revokeFreeze,
-          creatorWebsite: (enableAdvancedFeatures && creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
-          creatorName: (enableAdvancedFeatures && creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
+          creatorWebsite: enableAdvancedFeatures && creatorWebsite && creatorWebsite.trim() !== 'tokenclub.fun' ? creatorWebsite.trim() : undefined,
+          creatorName: enableAdvancedFeatures && creatorName && creatorName.trim() !== 'tokenclub' ? creatorName.trim() : undefined,
         });
         
         trackTokenCreationComplete({

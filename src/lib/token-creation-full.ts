@@ -86,10 +86,20 @@ export class FullTokenCreator {
       fee += PLATFORM_FEES.REVOKE_FREEZE_AUTHORITY;
     }
     
-    // Add 0.105 SOL if advanced features are enabled (only charge if params are provided, meaning toggle is ON)
+    // Add 0.105 SOL if advanced features are enabled
+    // Only charge if params are explicitly provided (not undefined and not empty string)
     // If toggle is OFF, params will be undefined, so we don't charge
-    const hasAdvancedFeatures = params.creatorWebsite !== undefined || params.creatorName !== undefined;
-    if (hasAdvancedFeatures) {
+    // Check explicitly for undefined and non-empty strings to avoid any falsy value issues
+    const hasAdvancedWebsite = params.creatorWebsite !== undefined && 
+                               params.creatorWebsite !== null && 
+                               typeof params.creatorWebsite === 'string' &&
+                               params.creatorWebsite.trim() !== '';
+    const hasAdvancedName = params.creatorName !== undefined && 
+                            params.creatorName !== null && 
+                            typeof params.creatorName === 'string' &&
+                            params.creatorName.trim() !== '';
+    
+    if (hasAdvancedWebsite || hasAdvancedName) {
       fee += PLATFORM_FEES.ADVANCED_FEATURES;
     }
     
