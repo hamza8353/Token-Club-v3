@@ -57,14 +57,14 @@ const ensureMetaplexInit = () => {
   return {
     name: 'ensure-metaplex-init',
     renderChunk(code, chunk, options) {
-      // Ensure metaplex, vendor, and reown chunks have proper initialization
+      // Ensure metaplex and vendor chunks have proper initialization
+      // Note: reown is now part of vendor chunk to avoid TDZ errors
       // The "codes" error suggests something is trying to set a property on undefined
       // This often happens when error objects or status code mappings aren't initialized
       // Check by chunk name OR by fileName pattern (more reliable)
       const isVendorChunk = chunk.name === 'vendor' || (chunk.fileName && chunk.fileName.includes('vendor'));
       const isMetaplexChunk = chunk.name === 'metaplex' || (chunk.fileName && chunk.fileName.includes('metaplex'));
-      const isReownChunk = chunk.name === 'reown' || (chunk.fileName && chunk.fileName.includes('reown'));
-      if (isMetaplexChunk || isVendorChunk || isReownChunk) {
+      if (isMetaplexChunk || isVendorChunk) {
         // Add comprehensive initialization code at the beginning
         // This runs BEFORE the chunk code executes, ensuring all globals exist
         const initCode = `(function(){
@@ -233,6 +233,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB to accommodate large vendor chunk
       },
     }),
   ],
@@ -269,9 +270,10 @@ export default defineConfig({
             if (id.includes('react') || id.includes('react-dom')) {
               return 'react';
             }
-            // Reown dependencies that might be shared - put in vendor first
-            // This ensures they're available before reown chunk loads
+            // Reown and its dependencies - put in vendor to avoid TDZ errors
+            // The reown chunk has internal circular dependencies causing TDZ errors
             if (
+              id.includes('@reown/') ||
               id.includes('viem') ||
               id.includes('@walletconnect') ||
               id.includes('ox/') ||
@@ -285,10 +287,6 @@ export default defineConfig({
             }
             if (id.includes('@meteora-ag/')) {
               return 'meteora';
-            }
-            // Reown packages - load after vendor
-            if (id.includes('@reown/')) {
-              return 'reown';
             }
             if (id.includes('framer-motion')) {
               return 'framer-motion';
