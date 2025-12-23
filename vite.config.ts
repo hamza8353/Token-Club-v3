@@ -163,7 +163,7 @@ const ensureMetaplexInit = () => {
           if(typeof window!=='undefined'){window.util=utilPolyfill;}
           if(typeof self!=='undefined'){self.util=utilPolyfill;}
           // Also create a module-level 'util' variable using var (function scope)
-          // This allows code like 'util.inspect()' to work
+          // This allows code like 'util.inspect()' to work within this IIFE
           var util=utilPolyfill;
           // Make util accessible via require pattern
           if(typeof globalThis.require==='undefined'){
@@ -174,6 +174,10 @@ const ensureMetaplexInit = () => {
               throw new Error('Cannot find module: '+module);
             };
           }
+          // CRITICAL: Use Proxy to intercept any util property accesses
+          // This catches cases where code tries to access util.inspect before util is defined
+          // We can't easily intercept module-level variables, but we can ensure globalThis.util is always available
+          // The generateBundle hook will replace util.inspect with safe accesses
           // Fix for "codes" property - ensure common error/status objects exist
           // This is often needed by HTTP libraries or error handling code
           try{
