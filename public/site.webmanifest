@@ -34,5 +34,29 @@
   "start_url": "/",
   "scope": "/",
   "categories": ["finance", "business", "utilities"],
-  "orientation": "portrait-primary"
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Create Token",
+      "short_name": "Create",
+      "description": "Create a new Solana token",
+      "url": "/?tab=create",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Swap Tokens",
+      "short_name": "Swap",
+      "description": "Swap Solana tokens",
+      "url": "/?tab=swap",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Liquidity",
+      "short_name": "Liquidity",
+      "description": "Manage liquidity pools",
+      "url": "/?tab=liquidity",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    }
+  ]
 }
