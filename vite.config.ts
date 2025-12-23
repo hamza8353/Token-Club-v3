@@ -57,21 +57,31 @@ const ensureMetaplexInit = () => {
   return {
     name: 'ensure-metaplex-init',
     generateBundle(options, bundle) {
-      // Fix codes property assignments in vendor chunk
-      // Find patterns like: variable.codes = value where variable might be undefined
+      // Fix codes property assignments and util.inspect accesses in vendor chunk
       for (const fileName in bundle) {
         const chunk = bundle[fileName];
         if (chunk.type === 'chunk' && fileName.includes('vendor')) {
           let code = chunk.code;
           // Pattern: variable.codes= or variable.codes = (minified code)
           // Replace with safe assignment: (variable=variable||{}).codes=
-          // Use a more specific regex to avoid false positives
           code = code.replace(
             /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\.\s*codes\s*=/g,
             (match, varName) => {
               // Only replace if it's not already wrapped
               if (!match.includes('||{}')) {
                 return `(${varName}=${varName}||{}).codes=`;
+              }
+              return match;
+            }
+          );
+          // Pattern: util.inspect or util.format (where util might be undefined)
+          // Replace with safe access: (util||globalThis.util||{}).inspect
+          code = code.replace(
+            /util\s*\.\s*(inspect|format)\s*\(/g,
+            (match, method) => {
+              // Only replace if not already wrapped
+              if (!match.includes('globalThis') && !match.includes('||')) {
+                return `((typeof util!=='undefined'&&util?util:(typeof globalThis!=='undefined'&&globalThis.util?globalThis.util:{}))).${method}(`;
               }
               return match;
             }
@@ -109,20 +119,26 @@ const ensureMetaplexInit = () => {
             var Buffer=globalThis.Buffer;
           }
           // Polyfill util.inspect / util.format for Node.js compatibility
+          // Ensure util exists on globalThis, global, window, and as a module-level variable
           if(typeof globalThis.util==='undefined'){
             globalThis.util={};
           }
-          if(typeof globalThis.util.inspect==='undefined'){
-            globalThis.util.inspect=function(obj,options){
+          if(typeof global!=='undefined'&&typeof global.util==='undefined'){
+            global.util=globalThis.util;
+          }
+          if(typeof window!=='undefined'&&typeof window.util==='undefined'){
+            window.util=globalThis.util;
+          }
+          // Create util object with inspect and format methods
+          const utilPolyfill={
+            inspect:function(obj,options){
               try{
                 return JSON.stringify(obj,null,2);
               }catch(e){
                 return String(obj);
               }
-            };
-          }
-          if(typeof globalThis.util.format==='undefined'){
-            globalThis.util.format=function(){
+            },
+            format:function(){
               try{
                 const args=Array.prototype.slice.call(arguments);
                 const first=args.shift();
@@ -144,7 +160,31 @@ const ensureMetaplexInit = () => {
               }catch(e){
                 return '';
               }
-            };
+            }
+          };
+          // Assign to all possible locations
+          globalThis.util=utilPolyfill;
+          if(typeof global!=='undefined'){global.util=utilPolyfill;}
+          if(typeof window!=='undefined'){window.util=utilPolyfill;}
+          // Also ensure util is available as a module-level variable
+          // Some code might access 'util' directly, not through globalThis
+          try{
+            // Try to make util available in the current scope
+            // Note: In ES modules, we can't easily create module-level vars,
+            // but we can ensure globalThis.util exists and is accessible
+            if(typeof globalThis!=='undefined'){
+              // Make util accessible via require pattern if needed
+              if(typeof globalThis.require==='undefined'){
+                globalThis.require=function(module){
+                  if(module==='util'){
+                    return globalThis.util;
+                  }
+                  throw new Error('Cannot find module: '+module);
+                };
+              }
+            }
+          }catch(e){
+            // Silently fail
           }
           // Fix for "codes" property - ensure common error/status objects exist
           // This is often needed by HTTP libraries or error handling code
