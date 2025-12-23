@@ -57,13 +57,14 @@ const ensureMetaplexInit = () => {
   return {
     name: 'ensure-metaplex-init',
     renderChunk(code, chunk, options) {
-      // Ensure metaplex and vendor chunks have proper initialization
+      // Ensure metaplex, vendor, and reown chunks have proper initialization
       // The "codes" error suggests something is trying to set a property on undefined
       // This often happens when error objects or status code mappings aren't initialized
       // Check by chunk name OR by fileName pattern (more reliable)
       const isVendorChunk = chunk.name === 'vendor' || (chunk.fileName && chunk.fileName.includes('vendor'));
       const isMetaplexChunk = chunk.name === 'metaplex' || (chunk.fileName && chunk.fileName.includes('metaplex'));
-      if (isMetaplexChunk || isVendorChunk) {
+      const isReownChunk = chunk.name === 'reown' || (chunk.fileName && chunk.fileName.includes('reown'));
+      if (isMetaplexChunk || isVendorChunk || isReownChunk) {
         // Add comprehensive initialization code at the beginning
         // This runs BEFORE the chunk code executes, ensuring all globals exist
         const initCode = `(function(){
