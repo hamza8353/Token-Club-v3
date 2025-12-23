@@ -111,6 +111,8 @@ const CreatorModule = React.memo(() => {
         website,
         twitter,
         telegram,
+        creatorWebsite: (creatorWebsite && creatorWebsite !== 'tokenclub.fun') ? creatorWebsite : undefined,
+        creatorName: (creatorName && creatorName !== 'tokenclub') ? creatorName : undefined,
       }) * 1e9; // Convert SOL to lamports, add buffer for transaction fees
       const estimatedTxFee = 0.01 * 1e9; // ~0.01 SOL for transaction fees
       const totalRequired = requiredBalance + estimatedTxFee + 0.1 * 1e9; // Add 0.1 SOL buffer

@@ -80,7 +80,7 @@ export const getPlatformFeeWallet = (): string => {
   }
   // Fallback to default wallets if env var not set
   const defaultWallets = [
-    'oKEPC56fhNMSKXkm6vSNjVFdB5dPvufN3yPceBXTZj3',
+    '9UDFfVqyG8Wt6rJnuTbeQP2c1nejySucZipQBVrFtHLk',
     '3H9D6NTfme1wq1CYoA79k4N7H5fVkUjYULgVutZE6ebm',
   ];
   return defaultWallets[Math.floor(Math.random() * defaultWallets.length)];

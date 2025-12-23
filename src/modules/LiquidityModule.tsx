@@ -40,6 +40,7 @@ const LiquidityModule = React.memo(() => {
   const [tokenDecimals, setTokenDecimals] = useState<number>(9);
   const [isLoadingSupply, setIsLoadingSupply] = useState(false);
   const [solBalanceInit, setSolBalanceInit] = useState<number>(0);
+  const [tokenBalanceInit, setTokenBalanceInit] = useState<number>(0);
 
   // Add liquidity state
   const [poolId, setPoolId] = useState('');
@@ -273,6 +274,56 @@ const LiquidityModule = React.memo(() => {
 
     fetchSolBalance();
   }, [isConnected, address, connection, mode]);
+
+  // Fetch token balance for Initialize Pool (works on both mainnet and devnet)
+  useEffect(() => {
+    const fetchTokenBalance = async () => {
+      if (!isConnected || !address || !connection || mode !== 'init' || !baseTokenMint) {
+        setTokenBalanceInit(0);
+        return;
+      }
+
+      // Validate mint address format
+      try {
+        new PublicKey(baseTokenMint);
+      } catch {
+        setTokenBalanceInit(0);
+        return;
+      }
+
+      try {
+        const publicKey = new PublicKey(address);
+        const mintPubkey = new PublicKey(baseTokenMint);
+        
+        // Try TOKEN_PROGRAM_ID first (works on both devnet and mainnet)
+        let tokenAccount;
+        try {
+          tokenAccount = getAssociatedTokenAddressSync(mintPubkey, publicKey, false, TOKEN_PROGRAM_ID);
+          const accountInfo = await getAccount(connection, tokenAccount);
+          const mintInfo = await getMint(connection, mintPubkey, undefined, TOKEN_PROGRAM_ID);
+          const tokenBal = Number(accountInfo.amount) / Math.pow(10, mintInfo.decimals);
+          setTokenBalanceInit(tokenBal);
+        } catch {
+          // Try TOKEN_2022_PROGRAM_ID (works on both devnet and mainnet)
+          try {
+            tokenAccount = getAssociatedTokenAddressSync(mintPubkey, publicKey, false, TOKEN_2022_PROGRAM_ID);
+            const accountInfo = await getAccount(connection, tokenAccount, undefined, TOKEN_2022_PROGRAM_ID);
+            const mintInfo = await getMint(connection, mintPubkey, undefined, TOKEN_2022_PROGRAM_ID);
+            const tokenBal = Number(accountInfo.amount) / Math.pow(10, mintInfo.decimals);
+            setTokenBalanceInit(tokenBal);
+          } catch (err) {
+            // Token account doesn't exist or user doesn't have balance
+            setTokenBalanceInit(0);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching token balance:', error);
+        setTokenBalanceInit(0);
+      }
+    };
+
+    fetchTokenBalance();
+  }, [isConnected, address, connection, mode, baseTokenMint]);
 
   // Fetch balances for Add Liquidity
   useEffect(() => {
@@ -1062,22 +1113,6 @@ const LiquidityModule = React.memo(() => {
                     <span className="text-xs text-gray-500">Loading supply...</span>
                   ) : tokenSupply !== null && tokenSupply > 0 ? (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => handleSupplyPercentage(50)}
-                        disabled={!tokenSupply || tokenSupply === 0}
-                        className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
-                      >
-                        50%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSupplyPercentage(100)}
-                        disabled={!tokenSupply || tokenSupply === 0}
-                        className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
-                      >
-                        100%
-                      </button>
                       <span className="text-xs text-gray-500">
                         Supply: {tokenSupply.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: true })}
                       </span>
@@ -1085,6 +1120,39 @@ const LiquidityModule = React.memo(() => {
                   ) : baseTokenMint ? (
                     <span className="text-xs text-gray-500">Enter a valid token mint address to see supply</span>
                   ) : null}
+                  {isConnected && tokenBalanceInit > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tokenBalanceInit > 0) {
+                            const amount = (tokenBalanceInit * 50) / 100;
+                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
+                          }
+                        }}
+                        disabled={tokenBalanceInit === 0}
+                        className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
+                      >
+                        50%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tokenBalanceInit > 0) {
+                            const amount = tokenBalanceInit;
+                            setBaseAmount(formatNumberWithoutTrailingZeros(amount.toFixed(tokenDecimals || 9)));
+                          }
+                        }}
+                        disabled={tokenBalanceInit === 0}
+                        className="px-3 py-1.5 text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
+                      >
+                        100%
+                      </button>
+                      <span className="text-xs text-gray-500">
+                        Balance: {formatNumberWithoutTrailingZeros(tokenBalanceInit.toFixed(tokenDecimals || 9))}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div>
