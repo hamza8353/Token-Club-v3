@@ -11,8 +11,43 @@ declare global {
 // Google Analytics Measurement ID
 const GA_MEASUREMENT_ID = 'G-YQPF87DGYM';
 
+// Track if gtag is ready
+let gtagReady = false;
+
+/**
+ * Wait for Google Analytics script to load
+ */
+const waitForGtag = (callback: () => void, maxAttempts = 50): void => {
+  if (typeof window === 'undefined') return;
+  
+  // Check if gtag is loaded (real gtag from Google's script)
+  const isGtagLoaded = typeof window.gtag === 'function' && 
+    document.querySelector('script[src*="googletagmanager.com/gtag/js"]') !== null;
+  
+  if (isGtagLoaded) {
+    gtagReady = true;
+    callback();
+    return;
+  }
+  
+  // If dataLayer exists but gtag isn't ready, wait a bit more
+  if (window.dataLayer && maxAttempts > 0) {
+    setTimeout(() => waitForGtag(callback, maxAttempts - 1), 100);
+    return;
+  }
+  
+  // Fallback: if script is blocked or not loading after max attempts
+  // Events will still be queued in dataLayer and processed if script loads later
+  if (maxAttempts === 0) {
+    console.warn('Google Analytics script may be blocked or not loading. Events are queued in dataLayer.');
+    gtagReady = true;
+    callback();
+  }
+};
+
 /**
  * Initialize Google Analytics
+ * This function ensures dataLayer is ready and waits for Google's script
  */
 export const initAnalytics = (): void => {
   // Only run in browser
@@ -20,24 +55,18 @@ export const initAnalytics = (): void => {
     return;
   }
   
-  // Check if already initialized
-  if (typeof window.gtag === 'function') {
-    return;
-  }
-
-  // Initialize dataLayer
+  // Initialize dataLayer immediately (Google's script expects this)
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function(...args: any[]) {
-    window.dataLayer.push(args);
-  };
-
-  // Set initial timestamp
-  window.gtag('js', new Date());
-
-  // Configure GA
-  window.gtag('config', GA_MEASUREMENT_ID, {
-    page_path: window.location.pathname,
-    page_title: typeof document !== 'undefined' ? document.title : '',
+  
+  // Wait for Google's script to load, then configure
+  waitForGtag(() => {
+    if (typeof window.gtag === 'function') {
+      // Configure GA with current page info
+      window.gtag('config', GA_MEASUREMENT_ID, {
+        page_path: window.location.pathname,
+        page_title: typeof document !== 'undefined' ? document.title : '',
+      });
+    }
   });
 };
 
@@ -45,16 +74,29 @@ export const initAnalytics = (): void => {
  * Track page view
  */
 export const trackPageView = (path: string, title?: string): void => {
-  if (typeof window === 'undefined' || !window.gtag) return;
-
-  window.gtag('config', GA_MEASUREMENT_ID, {
-    page_path: path,
-    page_title: title || (typeof document !== 'undefined' ? document.title : ''),
-  });
+  if (typeof window === 'undefined') return;
+  
+  // Ensure dataLayer exists
+  window.dataLayer = window.dataLayer || [];
+  
+  // If gtag is available, use it; otherwise queue in dataLayer
+  if (typeof window.gtag === 'function') {
+    window.gtag('config', GA_MEASUREMENT_ID, {
+      page_path: path,
+      page_title: title || (typeof document !== 'undefined' ? document.title : ''),
+    });
+  } else {
+    // Queue config in dataLayer (will be processed when Google's script loads)
+    window.dataLayer.push(['config', GA_MEASUREMENT_ID, {
+      page_path: path,
+      page_title: title || (typeof document !== 'undefined' ? document.title : ''),
+    }]);
+  }
 };
 
 /**
  * Track custom events
+ * This ensures events are always sent, even if gtag isn't loaded yet
  */
 export const trackEvent = (
   eventName: string,
@@ -65,11 +107,21 @@ export const trackEvent = (
     [key: string]: any;
   }
 ): void => {
-  if (typeof window === 'undefined' || !window.gtag) return;
-
-  window.gtag('event', eventName, {
-    ...eventParams,
-  });
+  if (typeof window === 'undefined') return;
+  
+  // Ensure dataLayer exists
+  window.dataLayer = window.dataLayer || [];
+  
+  // If gtag is available, use it; otherwise queue in dataLayer
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', eventName, {
+      ...eventParams,
+    });
+  } else {
+    // Queue event in dataLayer (will be processed when Google's script loads)
+    // Format: ['event', eventName, eventParams]
+    window.dataLayer.push(['event', eventName, eventParams || {}]);
+  }
 };
 
 // ============================================

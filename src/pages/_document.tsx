@@ -1,5 +1,4 @@
 import { Html, Head, Main, NextScript } from 'next/document'
-import Script from 'next/script'
 
 export default function Document() {
   return (
@@ -45,10 +44,28 @@ export default function Document() {
         <meta property="twitter:title" content="TokenClub - Solana Token Platform" />
         <meta property="twitter:description" content="TokenClub - Create, swap, and manage Solana tokens instantly" />
         
+        {/* Google Analytics - Load early in head */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-YQPF87DGYM"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-YQPF87DGYM', {
+                page_path: window.location.pathname,
+                page_title: document.title,
+              });
+            `,
+          }}
+        />
+        
         {/* Critical: Initialize util polyfill FIRST, before ANY modules load */}
-        <Script
+        <script
           id="util-polyfill-init"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
